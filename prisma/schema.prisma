@@ -49,17 +49,43 @@ model User {
 }
 
 model Destination {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String
-  state       String
-  district    String
-  latitude    Float
-  longitude   Float
-  coverImage  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String
+  slug               String   @unique
+  description        String
+  shortDescription   String?
+  fullDescription    String?
+  state              String
+  district           String
+  latitude           Float
+  longitude          Float
+  coverImage         String?
+  heroImage          String?
+  galleryImages      String[] @default([])
+  bestSeason         String?
+  openingHours       String?
+  estimatedDuration  String?
+  entryFee           String?
+  accessibility      String?
+  safetyInfo         String?
+  emergencyContacts  Json?
+  tags               String[] @default([])
+  categories         String[] @default([])
+  history            String?
+  culture            String?
+  religion           String?
+  traditions         String?
+  language           String?
+  food               String?
+  thingsToDo         String[] @default([])
+  nearbyAttractions  String[] @default([])
+  transportation     String?
+  hotels             Json?
+  homestays          Json?
+  hiddenGems         String[] @default([])
+  isFeatured         Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   experiences      Experience[]
   festivals        Festival[]
@@ -69,6 +95,7 @@ model Destination {
   @@index([state])
   @@index([district])
   @@index([name])
+  @@index([isFeatured])
 }
 
 model Experience {
@@ -89,20 +116,26 @@ model Experience {
   @@index([category])
   @@index([title])
 }
-
 model Festival {
-  id             String   @id @default(cuid())
+  id             String             @id @default(cuid())
   destinationId  String
   title          String
+  slug           String             @unique
+  description    String
+  imageUrl       String
+  category       ExperienceCategory
   startDate      DateTime
   endDate        DateTime
-  description    String
-  createdAt      DateTime @default(now())
+  isFeatured     Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  destination    Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  destination    Destination        @relation(fields: [destinationId], references: [id], onDelete: Cascade)
 
   @@index([destinationId])
   @@index([startDate])
+  @@index([category])
+  @@index([isFeatured])
 }
 
 model Story {

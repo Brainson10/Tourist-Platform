@@ -1,5 +1,6 @@
 export const PUBLIC_ROUTES = [
   { href: "/", label: "Home" },
+  { href: "/destinations", label: "Destinations" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
   { href: "/login", label: "Login" },

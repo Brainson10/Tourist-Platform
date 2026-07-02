@@ -20,11 +20,13 @@ async function ensureDestinationExists(destinationId) {
 }
 
 export async function listFestivals(filters = {}) {
-  const { destinationId, from, to, search, ...page } = filters;
+  const { destinationId, category, isFeatured, from, to, search, ...page } = filters;
 
   return prisma.festival.findMany({
     where: {
       ...(destinationId ? { destinationId } : {}),
+      ...(category ? { category } : {}),
+      ...(typeof isFeatured === "boolean" ? { isFeatured } : {}),
       ...(from || to
         ? {
             startDate: {
@@ -47,6 +49,22 @@ export async function listFestivals(filters = {}) {
     },
     orderBy: { startDate: "asc" },
     ...pagination(page),
+  });
+}
+
+export async function getFeaturedFestivals(limit = 6) {
+  return prisma.festival.findMany({
+    where: {
+      isFeatured: true,
+    },
+    include: {
+      destination: true,
+    },
+    orderBy: [
+      { startDate: "asc" },
+      { title: "asc" },
+    ],
+    take: limit,
   });
 }
 

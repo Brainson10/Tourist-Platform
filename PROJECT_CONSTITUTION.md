@@ -1,114 +1,168 @@
-# Smart Tourism Platform – Project Constitution
+# PROJECT_CONSTITUTION.md
 
-## 1. Mission
-Build a production-grade, AI-powered Smart Tourism Platform for Northeast India that helps tourists discover meaningful experiences, supports government planning with analytics, and gives administrators a reliable content and destination management layer.
+# Smart Tourism Experience Intelligence Platform
 
-This platform is an intelligent tourism experience system, not a hotel marketplace or travel booking platform.
+> **Version:** 1.0 (Foundation)
 
-## 2. Architectural Principles
-- UI belongs only in components.
-- Business logic belongs only in services.
-- Database access belongs in Prisma and library modules.
-- Keep components reusable and composable.
-- Avoid duplicated logic across features.
-- Follow SOLID principles and clean architecture boundaries.
-- Prefer Server Components where they improve performance and simplicity.
-- Use Server Actions only where they directly support mutation workflows.
-- Optimize for mobile-first responsive experiences and accessible interfaces.
+This document is the single source of truth for the project.
 
-## 3. Core Technology Stack
-- Next.js 15 with the App Router
-- JavaScript
-- React
-- Tailwind CSS
-- Prisma ORM
-- PostgreSQL
-- Better Auth
-- Cloudinary
-- Mapbox
-- Recharts
-- Zod
-- Vercel
+## Vision
 
-## 4. Repository Structure
-- app/ – route-level pages and layouts
-- components/ – reusable UI only
-- services/ – modular business logic
-- lib/ – shared infrastructure and utilities
-- actions/ – server actions when needed
-- hooks/ – reusable client hooks
-- context/ – shared state providers
-- constants/ – shared content and configuration
-- utils/ – helper functions
-- prisma/ – schema and database configuration
-- public/ – static assets
+Build an AI-powered Smart Tourism Experience Intelligence Platform
+focused on experiences rather than destinations.
 
-## 5. Feature Domains
-### Tourist Experience
-- Landing experience
-- Authentication
-- Dashboard
-- Explore
-- AI Recommendations
-- Trip Planner
-- Experience Timeline
-- Memories
-- Profile
-- Settings
+## Mission
 
-### Government Intelligence
-- Dashboard
-- Visitor Analytics
-- Crowd Heatmap
-- Festival Analytics
-- Eco Score
-- Reports
+Transform tourism from destination-centric to experience-centric using
+AI.
 
-### Administration
-- Users
-- Destinations
-- Experiences
-- Festivals
-- Stories
-- Villages
-- Reports
+## Core Principles
 
-## 6. AI Service Modules
-The AI capabilities must remain modular and isolated under services/.
+-   Experience before destination
+-   Sustainable tourism
+-   AI-assisted planning
+-   Promote local communities
+-   Functional features over decorative UI
 
-- services/recommendation/ – travel and experience recommendations
-- services/planner/ – itinerary and trip planning logic
-- services/context/ – tourist context and preference shaping
-- services/story/ – storytelling and memory generation
-- services/analytics/ – visitor and destination analytics
-- services/maps/ – geographic and route intelligence
+## User Roles
 
-## 7. Data Model Baseline
-The platform should be designed around the following entities:
-- User
-- Destination
-- Experience
-- Village
-- Festival
-- Story
-- Trip
-- Recommendation
-- Analytics
+-   Tourist
+-   Guide
+-   Administrator
+-   Government
 
-## 8. Product Quality Standards
-- Modern, premium, minimal visual language
-- Earth-tone palette with glassmorphism where appropriate
-- Smooth motion and polished transitions
-- Professional typography and calm spacing
-- Production-ready code with clear ownership boundaries
+## Core Modules
 
-## 9. Delivery Rules for Future Tasks
-- Explain the architecture before implementation.
-- Create complete files rather than partial scaffolds.
-- Keep new modules aligned with the existing structure.
-- Reuse existing services and components before introducing duplicates.
-- Do not invent missing dependencies; use the current stack unless a new dependency is explicitly approved.
-- If a missing module is required, document it and implement it in the correct layer.
+-   Authentication
+-   Destination Intelligence
+-   Experience Explorer
+-   Festival Intelligence
+-   Story Module
+-   AI Trip Planner
+-   Recommendation Engine
+-   Tourist Dashboard
+-   Guide Dashboard
+-   Government Dashboard
+-   Admin Dashboard
 
-## 10. Implementation Status
-The initial scaffold establishes the architecture foundation, reusable UI components, and modular service entry points for future feature work.
+## Search Engine
+
+The search engine must understand:
+
+-   Destinations
+-   Experiences
+-   Festivals
+-   Food
+-   Villages
+-   Natural language queries
+
+Examples:
+
+-   Loktak Lake
+-   Waterfalls near Imphal
+-   Weekend trip under ₹5000
+-   Best cultural experience
+
+Search results should include destinations, experiences, festivals,
+related places and AI suggestions.
+
+## Destination Module
+
+Every destination page should include:
+
+-   Overview
+-   Gallery
+-   History
+-   Culture
+-   Religion
+-   Traditions
+-   Food
+-   Things to do
+-   Nearby attractions
+-   Weather
+-   Best season
+-   Hotels
+-   Homestays
+-   Local guides
+-   Festivals
+-   Safety
+-   Emergency contacts
+-   AI itinerary
+-   Reviews
+-   Hidden gems
+
+## AI Trip Planner
+
+Inputs:
+
+-   Budget
+-   Travel days
+-   Interests
+-   Group type
+-   Season
+
+Outputs:
+
+-   Personalized itinerary
+-   Estimated cost
+-   Packing list
+-   Food recommendations
+-   Festival recommendations
+-   Safety advice
+
+## Architecture
+
+Browser
+
+↓
+
+Next.js
+
+↓
+
+Server Components
+
+↓
+
+API / Server Actions
+
+↓
+
+Service Layer
+
+↓
+
+Repository Layer
+
+↓
+
+Prisma
+
+↓
+
+PostgreSQL
+
+Never access Prisma directly from UI components.
+
+## Coding Standards
+
+-   Reusable components
+-   Single Responsibility Principle
+-   Zod validation
+-   Responsive UI
+-   Loading, empty and error states
+-   Clean architecture
+
+## Long-Term Vision
+
+Future integrations:
+
+-   AI assistant
+-   Offline guide
+-   AR tourism
+-   Voice guide
+-   Mobile app
+-   Government analytics
+
+This constitution is a living document and must be updated before
+implementing new features.
