@@ -3,10 +3,9 @@
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/db";
 import { loginSchema } from "@/lib/auth/validators";
-import { auth } from "@/lib/auth/config";
-import { cookies } from "next/headers";
+import { setSessionCookie } from "@/lib/auth/session";
 
-export async function loginAction(formData) {
+export async function loginAction(_previousState, formData) {
   const payload = Object.fromEntries(formData.entries());
   const parsed = loginSchema.safeParse({
     ...payload,
@@ -39,26 +38,11 @@ export async function loginAction(formData) {
     };
   }
 
-  const cookieStore = await cookies();
-  const session = await auth.api.signInEmail({
-    body: {
-      email,
-      password,
-    },
-    headers: {
-      cookie: cookieStore.getAll().map((cookie) => `${cookie.name}=${cookie.value}`).join("; "),
-    },
-  });
-
-  if (!session) {
-    return {
-      success: false,
-      error: { email: ["Unable to create a session"] },
-    };
-  }
+  await setSessionCookie(user, rememberMe);
 
   return {
     success: true,
     message: "Signed in successfully",
+    redirectTo: user.role === "ADMIN" ? "/admin" : "/dashboard",
   };
 }

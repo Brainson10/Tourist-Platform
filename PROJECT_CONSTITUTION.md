@@ -35,6 +35,8 @@ AI.
 
 -   Authentication
 -   Destination Intelligence
+-   Village Intelligence
+-   Tourism CMS
 -   Experience Explorer
 -   Festival Intelligence
 -   Story Module
@@ -44,6 +46,40 @@ AI.
 -   Guide Dashboard
 -   Government Dashboard
 -   Admin Dashboard
+
+## Tourism CMS
+
+The Admin Dashboard is the internal Tourism CMS for managing the
+platform's operational intelligence.
+
+It must support:
+
+-   Destination intelligence administration
+-   Village and category management
+-   Festival, experience, and story content management
+-   Review moderation
+-   User role and account-status management
+-   Platform settings
+
+All CMS mutations must follow:
+
+Controller
+
+↓
+
+Service
+
+↓
+
+Repository
+
+↓
+
+Prisma
+
+Admin CMS pages must provide search, filters, pagination, loading
+states, empty states, delete confirmation, and clear success/error
+feedback.
 
 ## Search Engine
 

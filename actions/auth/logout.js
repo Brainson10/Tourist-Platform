@@ -1,16 +1,9 @@
 "use server";
 
-import { auth } from "@/lib/auth/config";
-import { cookies } from "next/headers";
+import { clearSessionCookie } from "@/lib/auth/session";
 
 export async function logoutAction() {
-  const cookieStore = await cookies();
-
-  await auth.api.signOut({
-    headers: {
-      cookie: cookieStore.getAll().map((cookie) => `${cookie.name}=${cookie.value}`).join("; "),
-    },
-  });
+  await clearSessionCookie();
 
   return {
     success: true,

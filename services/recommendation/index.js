@@ -1,3 +1,30 @@
+import prisma from "@/lib/db";
+
+export async function listRecommendationsForUser(userId, { limit = 6 } = {}) {
+  return prisma.recommendation.findMany({
+    where: {
+      userId,
+    },
+    include: {
+      destination: {
+        include: {
+          village: true,
+          photos: {
+            orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+          },
+          destinationCategories: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: [{ score: "desc" }, { createdAt: "desc" }],
+    take: limit,
+  });
+}
+
 export function getRecommendationHighlights() {
   return [
     {

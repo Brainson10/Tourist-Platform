@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/db";
 import { signupSchema } from "@/lib/auth/validators";
 
-export async function signupAction(formData) {
+export async function signupAction(_previousState, formData) {
   const payload = Object.fromEntries(formData.entries());
   const parsed = signupSchema.safeParse(payload);
 

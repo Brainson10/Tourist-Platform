@@ -30,6 +30,12 @@ enum ExperienceCategory {
   SPIRITUAL
 }
 
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+}
+
 model User {
   id           String       @id @default(cuid())
   fullName     String
@@ -38,11 +44,13 @@ model User {
   avatar       String?
   role         UserRole     @default(TOURIST)
   phone        String?
+  isBlocked    Boolean      @default(false)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
   trips            Trip[]
   recommendations  Recommendation[]
+  reviews Review[]
 
   @@index([email])
   @@index([role])
@@ -61,7 +69,6 @@ model Destination {
   longitude          Float
   coverImage         String?
   heroImage          String?
-  galleryImages      String[] @default([])
   bestSeason         String?
   openingHours       String?
   estimatedDuration  String?
@@ -70,7 +77,6 @@ model Destination {
   safetyInfo         String?
   emergencyContacts  Json?
   tags               String[] @default([])
-  categories         String[] @default([])
   history            String?
   culture            String?
   religion           String?
@@ -92,10 +98,116 @@ model Destination {
   stories          Story[]
   recommendations  Recommendation[]
 
+  villageId String
+  village Village @relation(fields: [villageId], references: [id])
+  photos DestinationPhoto[]
+  destinationCategories DestinationCategory[]
+  reviews Review[]
+
   @@index([state])
   @@index([district])
   @@index([name])
   @@index([isFeatured])
+}
+model Village {
+  id          String   @id @default(cuid())
+  name        String
+  district    String
+  state       String
+  pincode     String?
+  description String?
+
+  latitude    Float
+  longitude   Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  destinations Destination[]
+
+  @@unique([name, district])
+  @@index([district])
+  @@index([state])
+}
+
+model Category {
+  id          String @id @default(cuid())
+  name        String @unique
+  slug        String @unique
+  icon        String?
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  destinations DestinationCategory[]
+}
+
+model DestinationCategory {
+  destinationId String
+  categoryId    String
+
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([destinationId, categoryId])
+
+  @@index([categoryId])
+}
+
+model DestinationPhoto {
+  id String @id @default(cuid())
+
+  destinationId String
+
+  imageUrl String
+
+  caption String?
+
+  isCover Boolean @default(false)
+
+  displayOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@index([destinationId])
+
+  @@index([displayOrder])
+}
+
+model Review {
+  id String @id @default(cuid())
+
+  destinationId String
+
+  userId String
+
+  rating Int
+
+  title String?
+
+  comment String
+
+  status ReviewStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([destinationId])
+
+  @@index([userId])
+
+  @@index([rating])
+
+  @@index([status])
 }
 
 model Experience {
@@ -182,4 +294,14 @@ model Recommendation {
   @@index([userId])
   @@index([destinationId])
   @@index([score])
+}
+
+model PlatformSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
 }

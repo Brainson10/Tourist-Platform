@@ -1,10 +1,22 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
+const prisma = new PrismaClient({ adapter });
+
+function slugify(value) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 async function main() {
   const passwordHash = await bcrypt.hash("Admin@123", 10);
@@ -37,6 +49,7 @@ async function main() {
     {
       name: "Kaziranga National Park",
       slug: "kaziranga",
+      villageName: "Kohora",
       description: "A UNESCO World Heritage site famed for one-horned rhinoceros and lush grasslands.",
       shortDescription: "Rhino country, riverine forests, wetlands, and community-led wildlife experiences.",
       fullDescription:
@@ -86,6 +99,7 @@ async function main() {
     {
       name: "Tawang",
       slug: "tawang",
+      villageName: "Tawang Town",
       description: "A high-altitude town known for monasteries, valleys, and scenic mountain roads.",
       shortDescription: "A Himalayan culture, monastery, and mountain-road journey in western Arunachal Pradesh.",
       fullDescription:
@@ -135,6 +149,7 @@ async function main() {
     {
       name: "Shillong",
       slug: "shillong",
+      villageName: "Laitumkhrah",
       description: "The misty hill station of Meghalaya known for lakes, gardens, and local culture.",
       shortDescription: "Music, markets, pine hills, food, and day trips into Meghalaya's living landscapes.",
       fullDescription:
@@ -181,17 +196,242 @@ async function main() {
       hiddenGems: ["Early morning market walks", "Small music venues", "Quiet viewpoints around Laitlum"],
       isFeatured: true,
     },
+    {
+      name: "Loktak Lake",
+      slug: "loktak-lake",
+      villageName: "Thanga",
+      description: "A living freshwater lake landscape known for floating phumdis, fishing communities, and Keibul Lamjao National Park.",
+      shortDescription: "Floating islands, lake villages, birding, boating, and slow community-led travel around Manipur's iconic lake.",
+      fullDescription:
+        "Loktak Lake is the largest freshwater lake in Northeast India and one of Manipur's most important ecological and cultural landscapes. Travelers can experience floating phumdis, fishing traditions, wetland birding, homestays, lake viewpoints, and responsible visits near Keibul Lamjao National Park, the habitat of the endangered sangai deer.",
+      state: "Manipur",
+      district: "Bishnupur",
+      latitude: 24.5464,
+      longitude: 93.8003,
+      coverImage: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+      heroImage: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+      galleryImages: [
+        "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+        "https://images.unsplash.com/photo-1506744038136-46273834b3fb",
+        "https://images.unsplash.com/photo-1469474968028-56623f02e42e",
+      ],
+      bestSeason: "October to March",
+      openingHours: "Lake access depends on weather, boat availability, and local guidance.",
+      estimatedDuration: "1 to 2 days",
+      entryFee: "Viewpoints are usually low cost; boating and guided community experiences vary.",
+      accessibility: "Road access is available to nearby settlements, but boat access and wetland edges may be difficult for some travelers.",
+      safetyInfo: "Use local boat operators, wear life jackets, avoid unsafe monsoon boating, and follow wetland conservation rules.",
+      emergencyContacts: [
+        { label: "Emergency", value: "112" },
+        { label: "Bishnupur District Support", value: "District administration helpline" },
+      ],
+      tags: ["lake", "wetland", "community", "birding", "sangai"],
+      categories: ["Nature", "Culture", "Wildlife"],
+      history: "Loktak has supported fishing communities, wetland livelihoods, and cultural memory across generations in Manipur.",
+      culture: "Lake villages, fishing practices, food traditions, and community knowledge shape the visitor experience.",
+      religion: "The surrounding region reflects Meitei and local community faith practices with temples and sacred local traditions.",
+      traditions: "Fishing, boat making, seasonal lake life, and local food customs are central to the landscape.",
+      language: "Manipuri is widely spoken, with English and Hindi used in many visitor settings.",
+      food: "Try local fish preparations, singju, eromba, seasonal vegetables, and homestay meals.",
+      thingsToDo: ["Boat through phumdis", "Visit Sendra viewpoint", "Explore Keibul Lamjao", "Birdwatching", "Stay with a lake community"],
+      nearbyAttractions: ["Keibul Lamjao National Park", "Sendra Island", "Moirang INA Museum"],
+      transportation: "Road travel from Imphal to Moirang and Thanga is common. Local boats should be arranged with trusted operators.",
+      hotels: [
+        { name: "Lake-view stays near Sendra", type: "Hotel" },
+        { name: "Guesthouses around Moirang", type: "Guesthouse" },
+      ],
+      homestays: [
+        { name: "Community homestays in Thanga", type: "Homestay" },
+      ],
+      hiddenGems: ["Sunrise over phumdis", "Local fish markets", "Quiet birding stretches near the lake edge"],
+      isFeatured: true,
+    },
+    {
+      name: "Shirui Hills",
+      slug: "shirui-hills",
+      villageName: "Shirui",
+      description: "A misty hill landscape in Ukhrul known for the rare Shirui lily, Tangkhul culture, and highland views.",
+      shortDescription: "Highland trails, rare seasonal lilies, Tangkhul hospitality, and cool mountain weather.",
+      fullDescription:
+        "Shirui Hills offers one of Manipur's most distinctive highland experiences, especially during the blooming season of the rare Shirui lily. The destination combines ecological sensitivity, mountain walking, village hospitality, local food, and cultural learning in the Ukhrul district.",
+      state: "Manipur",
+      district: "Ukhrul",
+      latitude: 25.1085,
+      longitude: 94.3619,
+      coverImage: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b",
+      heroImage: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b",
+      galleryImages: [
+        "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b",
+        "https://images.unsplash.com/photo-1501785888041-af3ef285b470",
+        "https://images.unsplash.com/photo-1469474968028-56623f02e42e",
+      ],
+      bestSeason: "April to June and October to November",
+      openingHours: "Trail access depends on weather, local guidance, and conservation advisories.",
+      estimatedDuration: "2 days",
+      entryFee: "Local guide, festival, or conservation fees may apply.",
+      accessibility: "Hill trails can be steep and slippery. Travelers should prepare for changing weather and basic facilities.",
+      safetyInfo: "Use local guides, avoid damaging lily habitats, carry rain protection, and check road conditions before travel.",
+      emergencyContacts: [
+        { label: "Emergency", value: "112" },
+        { label: "Ukhrul Tourist Support", value: "District tourism office" },
+      ],
+      tags: ["hills", "lily", "trekking", "culture", "photography"],
+      categories: ["Nature", "Culture", "Adventure"],
+      history: "Shirui is strongly associated with Tangkhul heritage and the conservation story of the rare Shirui lily.",
+      culture: "Tangkhul food, music, village life, and hospitality add depth to the mountain experience.",
+      religion: "Christian communities are prominent in the region, alongside older cultural memory and community traditions.",
+      traditions: "Seasonal festivals, weaving, local food practices, and village gatherings shape the travel rhythm.",
+      language: "Tangkhul languages are spoken locally, with Manipuri, English, and Hindi also used.",
+      food: "Try local smoked meat, bamboo shoot dishes, hill vegetables, black rice preparations, and village meals.",
+      thingsToDo: ["Walk Shirui trails", "Photograph lily blooms responsibly", "Explore Ukhrul town", "Try Tangkhul food", "Visit local viewpoints"],
+      nearbyAttractions: ["Ukhrul town", "Khayang Peak", "Kachouphung Lake"],
+      transportation: "Road travel from Imphal to Ukhrul and Shirui is common. Build buffer time for hill roads.",
+      hotels: [
+        { name: "Guesthouses in Ukhrul", type: "Guesthouse" },
+      ],
+      homestays: [
+        { name: "Village homestays in Shirui", type: "Homestay" },
+      ],
+      hiddenGems: ["Misty morning viewpoints", "Village food stops", "Quiet trail sections away from peak festival crowds"],
+      isFeatured: false,
+    },
+    {
+      name: "Dzukou Valley",
+      slug: "dzukou-valley",
+      villageName: "Viswema",
+      description: "A high valley of rolling meadows, seasonal flowers, and trekking routes on the Manipur-Nagaland border.",
+      shortDescription: "A cool trekking escape with meadows, flowers, camps, and dramatic valley views.",
+      fullDescription:
+        "Dzukou Valley is a celebrated trekking landscape known for soft green folds, seasonal blooms, cool weather, and a sense of quiet remoteness. It suits travelers who are ready for basic facilities, responsible camping, local guides, and careful weather planning.",
+      state: "Nagaland",
+      district: "Kohima",
+      latitude: 25.538,
+      longitude: 94.071,
+      coverImage: "https://images.unsplash.com/photo-1501785888041-af3ef285b470",
+      heroImage: "https://images.unsplash.com/photo-1501785888041-af3ef285b470",
+      galleryImages: [
+        "https://images.unsplash.com/photo-1501785888041-af3ef285b470",
+        "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+        "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b",
+      ],
+      bestSeason: "June to September for blooms, November to March for clear treks",
+      openingHours: "Trail entry depends on route, weather, and local permissions.",
+      estimatedDuration: "2 to 3 days",
+      entryFee: "Entry, guide, camping, and porter fees vary by route and season.",
+      accessibility: "The valley requires trekking and basic stays. It is not suited for travelers with limited mobility.",
+      safetyInfo: "Carry warm layers, waterproof gear, sufficient water, and travel with local guides during uncertain weather.",
+      emergencyContacts: [
+        { label: "Emergency", value: "112" },
+        { label: "Local guide support", value: "Arrange before trek" },
+      ],
+      tags: ["trekking", "valley", "flowers", "camping", "nature"],
+      categories: ["Adventure", "Nature", "Photography"],
+      history: "The valley has long been connected to local community routes and has become a signature trekking landscape of the region.",
+      culture: "Nearby Naga villages contribute guiding, food, route knowledge, and conservation practices.",
+      religion: "The surrounding villages include strong Christian community life and local cultural traditions.",
+      traditions: "Community route management, village hospitality, and seasonal trekking practices define the experience.",
+      language: "Local Naga languages, English, and Hindi are used around route access points.",
+      food: "Expect simple trek meals, local rice dishes, smoked meat, seasonal greens, and packed food.",
+      thingsToDo: ["Trek to the valley", "Camp responsibly", "Photograph seasonal flowers", "Watch sunrise", "Learn route ecology"],
+      nearbyAttractions: ["Kohima", "Jakhama village", "Viswema route viewpoints"],
+      transportation: "Road access to Viswema or Jakhama is followed by trekking. Arrange permits and local guide support in advance.",
+      hotels: [
+        { name: "Hotels in Kohima", type: "Hotel" },
+      ],
+      homestays: [
+        { name: "Village homestays near Viswema", type: "Homestay" },
+      ],
+      hiddenGems: ["Quiet sunrise ridges", "Flowering pockets after rain", "Village food before the climb"],
+      isFeatured: false,
+    },
   ];
 
-  const destinations = await Promise.all(
-    destinationProfiles.map((destination) =>
-      prisma.destination.upsert({
-        where: { slug: destination.slug },
-        update: destination,
-        create: destination,
+  const categoryNames = Array.from(new Set(destinationProfiles.flatMap((destination) => destination.categories)));
+  const categoryRecords = await Promise.all(
+    categoryNames.map((name) =>
+      prisma.category.upsert({
+        where: { slug: slugify(name) },
+        update: { name },
+        create: {
+          name,
+          slug: slugify(name),
+        },
       })
     )
   );
+  const categoriesByName = new Map(categoryRecords.map((category) => [category.name, category]));
+
+  const destinations = [];
+
+  for (const destination of destinationProfiles) {
+    const { galleryImages, categories, villageName, ...destinationData } = destination;
+    const village = await prisma.village.upsert({
+      where: {
+        name_district: {
+          name: villageName,
+          district: destination.district,
+        },
+      },
+      update: {
+        state: destination.state,
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+      },
+      create: {
+        name: villageName,
+        district: destination.district,
+        state: destination.state,
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+        description: `Tourism service village for ${villageName}.`,
+      },
+    });
+
+    const savedDestination = await prisma.destination.upsert({
+      where: { slug: destination.slug },
+      update: {
+        ...destinationData,
+        villageId: village.id,
+      },
+      create: {
+        ...destinationData,
+        villageId: village.id,
+      },
+    });
+
+    await prisma.destinationPhoto.deleteMany({
+      where: {
+        destinationId: savedDestination.id,
+      },
+    });
+
+    if (galleryImages.length) {
+      await prisma.destinationPhoto.createMany({
+        data: galleryImages.map((imageUrl, index) => ({
+          destinationId: savedDestination.id,
+          imageUrl,
+          isCover: index === 0,
+          displayOrder: index,
+        })),
+      });
+    }
+
+    await prisma.destinationCategory.deleteMany({
+      where: {
+        destinationId: savedDestination.id,
+      },
+    });
+
+    await prisma.destinationCategory.createMany({
+      data: categories.map((categoryName) => ({
+        destinationId: savedDestination.id,
+        categoryId: categoriesByName.get(categoryName).id,
+      })),
+      skipDuplicates: true,
+    });
+
+    destinations.push(savedDestination);
+  }
 
   const kaziranga = destinations[0];
   const tawang = destinations[1];

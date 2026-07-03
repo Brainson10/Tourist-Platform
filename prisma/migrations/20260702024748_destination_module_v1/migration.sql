@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Festival" ALTER COLUMN "imageUrl" DROP DEFAULT,
+ALTER COLUMN "category" DROP DEFAULT,
+ALTER COLUMN "updatedAt" DROP DEFAULT;
