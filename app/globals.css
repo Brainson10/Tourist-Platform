@@ -1,32 +1,226 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8f5ef;
-  --foreground: #0f172a;
+/* Dark mode follows a `.dark` class on <html> (set before paint by the script in app/layout.js). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * "Handloom Heritage" design tokens.
+ * Components use semantic names (surface, ink, line, link…) so light and dark themes
+ * only differ here. Brand/accent scales stay constant for filled backgrounds.
+ */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-serif: var(--font-serif-body), ui-serif, Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Tea-leaf green */
+  --color-brand-50: #eff5ec;
+  --color-brand-100: #d9e9d3;
+  --color-brand-200: #b4d3aa;
+  --color-brand-300: #8bb87f;
+  --color-brand-400: #639b58;
+  --color-brand-500: #467f3f;
+  --color-brand-600: #346731;
+  --color-brand-700: #2a5428;
+  --color-brand-800: #224222;
+  --color-brand-900: #1c361d;
+
+  /* Terracotta, marigold, indigo */
+  --color-accent-400: #d27454;
+  --color-accent-500: #bf5a3a;
+  --color-accent-600: #a4472b;
+  --color-accent-700: #853823;
+  --color-marigold-300: #f6cf7d;
+  --color-marigold-400: #f0b43f;
+  --color-marigold-500: #de9a17;
+  --color-indigo-500: #3e4f8f;
+  --color-indigo-600: #313f74;
+  --color-night: #1b1712;
+
+  /* Semantic — light */
+  --color-canvas: #f7f2e8;
+  --color-surface: #fffdf8;
+  --color-surface-muted: #f0e9dc;
+  --color-ink: #211b14;
+  --color-ink-muted: #5c5245;
+  --color-ink-subtle: #857a6b;
+  --color-line: #e3d8c5;
+  --color-line-strong: #cbbda6;
+  --color-link: #2a5428;
+  --color-link-hover: #1c361d;
+  --color-brand-soft: #eaf2e5;
+  --color-brand-soft-line: #cfe2c7;
+  --color-brand-strong: #1c361d;
+  --color-accent-soft: #f8e7df;
+  --color-accent-ink: #853823;
+  --color-highlight: #d98f0b;
+  --color-warn-soft: #fcf1d9;
+  --color-warn-line: #efd49a;
+  --color-warn-ink: #6e4a07;
+  --color-danger: #c0392b;
+  --color-danger-soft: #fbe9e6;
+  --color-danger-line: #f1c4bd;
+  --color-danger-ink: #8e2419;
+  --color-info-soft: #e8ecf8;
+  --color-info-ink: #313f74;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --color-canvas: #14110d;
+  --color-surface: #1d1914;
+  --color-surface-muted: #28221b;
+  --color-ink: #f3ecdf;
+  --color-ink-muted: #bfb3a0;
+  --color-ink-subtle: #948876;
+  --color-line: #3a3228;
+  --color-line-strong: #52473a;
+  --color-link: #9fca92;
+  --color-link-hover: #c4e0ba;
+  --color-brand-soft: #1f2a1c;
+  --color-brand-soft-line: #34482f;
+  --color-brand-strong: #cfe6c6;
+  --color-accent-soft: #33201a;
+  --color-accent-ink: #f0b39c;
+  --color-highlight: #f0b43f;
+  --color-warn-soft: #2e2413;
+  --color-warn-line: #5a4520;
+  --color-warn-ink: #f3d492;
+  --color-danger-soft: #331815;
+  --color-danger-line: #5e2a24;
+  --color-danger-ink: #f4b0a6;
+  --color-info-soft: #1d2236;
+  --color-info-ink: #b9c3ee;
+  color-scheme: dark;
 }
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
 }
 
-* {
-  box-sizing: border-box;
+/* Headlines use the display serif everywhere, including the admin panel. */
+h1,
+h2,
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
 }
 
-a {
-  text-decoration: none;
+::selection {
+  background: var(--color-marigold-300);
+  color: #211b14;
 }
 
+/* Consistent, visible keyboard focus everywhere. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Maps: tone OSM tiles down in dark mode instead of loading a second tile set. */
+.dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.7);
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--color-surface-muted);
+}
+
+@media print {
+  .no-print,
+  header,
+  footer,
+  nav[aria-label="Breadcrumb"] {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+}
+
+/* Map pins (Leaflet divIcons). Colour by kind. */
+.map-pin {
+  display: flex;
+  height: 28px;
+  width: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fffdf8;
+  border-radius: 999px 999px 999px 0;
+  transform: rotate(-45deg);
+  background: var(--color-brand-700);
+  color: #fff;
+  font: 600 12px/1 var(--font-sans);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+
+/* The teardrop is rotated; the label inside is rotated back so numbers read upright. */
+.map-pin__label {
+  transform: rotate(45deg);
+}
+
+.map-pin--destination { background: var(--color-brand-700); }
+.map-pin--hospital { background: #c0392b; }
+.map-pin--police { background: var(--color-indigo-500); }
+.map-pin--restaurant { background: var(--color-accent-500); }
+.map-pin--hotel { background: #7a5a2e; }
+.map-pin--attraction { background: var(--color-marigold-500); }
+.map-pin--transport { background: #2f6f8f; }
+.map-pin--atm { background: #4b5563; }
+.map-pin--stop { background: var(--color-accent-600); }
+
+.map-popup {
+  display: grid;
+  gap: 2px;
+  font-family: var(--font-sans);
+}
+
+.map-popup a,
+.map-popup strong {
+  font-weight: 600;
+  color: var(--color-brand-700);
+}
+
+.map-popup span {
+  font-size: 12px;
+  color: #5c5245;
+}

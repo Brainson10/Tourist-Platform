@@ -1,50 +1,29 @@
 import { requireAuthenticatedUser } from "@/lib/api/auth";
 import { readJsonBody } from "@/lib/api/request";
-import { handleApiError, successResponse } from "@/lib/api/response";
+import { successResponse, withErrorHandling } from "@/lib/api/response";
 import { validate } from "@/lib/api/validation";
+import { deleteTrip, getTrip, updateTrip } from "@/lib/services/trip.service";
 import { idParamSchema } from "@/lib/validators/common";
 import { updateTripSchema } from "@/lib/validators/trip";
-import { deleteTripForUser, getTripForUser, updateTripForUser } from "@/services/trip";
 
-export async function GET(_request, { params }) {
-  try {
-    const user = await requireAuthenticatedUser();
-    const { id } = validate(idParamSchema, await params);
-    const trip = await getTripForUser(id, user.id);
+export const GET = withErrorHandling(async (_request, { params }) => {
+  const user = await requireAuthenticatedUser();
+  const { id } = validate(idParamSchema, await params);
 
-    return successResponse(trip, {
-      message: "Trip retrieved successfully",
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+  return successResponse(await getTrip(id, user.id), { message: "Trip loaded" });
+});
 
-export async function PATCH(request, { params }) {
-  try {
-    const user = await requireAuthenticatedUser();
-    const { id } = validate(idParamSchema, await params);
-    const body = validate(updateTripSchema, await readJsonBody(request));
-    const trip = await updateTripForUser(id, user.id, body);
+export const PATCH = withErrorHandling(async (request, { params }) => {
+  const user = await requireAuthenticatedUser();
+  const { id } = validate(idParamSchema, await params);
+  const input = validate(updateTripSchema, await readJsonBody(request));
 
-    return successResponse(trip, {
-      message: "Trip updated successfully",
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+  return successResponse(await updateTrip(id, user.id, input), { message: "Trip updated" });
+});
 
-export async function DELETE(_request, { params }) {
-  try {
-    const user = await requireAuthenticatedUser();
-    const { id } = validate(idParamSchema, await params);
-    const trip = await deleteTripForUser(id, user.id);
+export const DELETE = withErrorHandling(async (_request, { params }) => {
+  const user = await requireAuthenticatedUser();
+  const { id } = validate(idParamSchema, await params);
 
-    return successResponse(trip, {
-      message: "Trip deleted successfully",
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+  return successResponse(await deleteTrip(id, user.id), { message: "Trip deleted" });
+});

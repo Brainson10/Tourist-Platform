@@ -8,9 +8,8 @@ datasource db {
 
 enum UserRole {
   TOURIST
-  ADMIN
   GUIDE
-  GOVERNMENT
+  ADMIN
 }
 
 enum TripStatus {
@@ -36,79 +35,97 @@ enum ReviewStatus {
   HIDDEN
 }
 
+enum GuideStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum GuideRequestStatus {
+  NEW
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+// ---------------------------------------------------------------------------
+// Accounts (Better Auth). `fullName` and `avatar` are mapped to Better Auth's
+// `name` and `image` fields in lib/auth/config.js. Passwords live in Account.
+// ---------------------------------------------------------------------------
+
 model User {
-  id           String       @id @default(cuid())
-  fullName     String
-  email        String       @unique
-  passwordHash String
-  avatar       String?
-  role         UserRole     @default(TOURIST)
-  phone        String?
-  isBlocked    Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id            String   @id @default(cuid())
+  fullName      String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  avatar        String?
+  role          UserRole @default(TOURIST)
+  phone         String?
+  isBlocked     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  trips            Trip[]
-  recommendations  Recommendation[]
-  reviews Review[]
+  sessions          Session[]
+  accounts          Account[]
+  trips             Trip[]
+  reviews           Review[]
+  savedDestinations SavedDestination[]
+  guideProfile      GuideProfile?
+  guideRequests     GuideRequest[]
 
-  @@index([email])
   @@index([role])
 }
 
-model Destination {
-  id                 String   @id @default(cuid())
-  name               String
-  slug               String   @unique
-  description        String
-  shortDescription   String?
-  fullDescription    String?
-  state              String
-  district           String
-  latitude           Float
-  longitude          Float
-  coverImage         String?
-  heroImage          String?
-  bestSeason         String?
-  openingHours       String?
-  estimatedDuration  String?
-  entryFee           String?
-  accessibility      String?
-  safetyInfo         String?
-  emergencyContacts  Json?
-  tags               String[] @default([])
-  history            String?
-  culture            String?
-  religion           String?
-  traditions         String?
-  language           String?
-  food               String?
-  thingsToDo         String[] @default([])
-  nearbyAttractions  String[] @default([])
-  transportation     String?
-  hotels             Json?
-  homestays          Json?
-  hiddenGems         String[] @default([])
-  isFeatured         Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+model Session {
+  id        String   @id
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  experiences      Experience[]
-  festivals        Festival[]
-  stories          Story[]
-  recommendations  Recommendation[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  villageId String
-  village Village @relation(fields: [villageId], references: [id])
-  photos DestinationPhoto[]
-  destinationCategories DestinationCategory[]
-  reviews Review[]
-
-  @@index([state])
-  @@index([district])
-  @@index([name])
-  @@index([isFeatured])
+  @@index([userId])
 }
+
+model Account {
+  id                    String    @id
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+// ---------------------------------------------------------------------------
+// Places. A destination's district and state always come from its village.
+// ---------------------------------------------------------------------------
+
 model Village {
   id          String   @id @default(cuid())
   name        String
@@ -116,12 +133,10 @@ model Village {
   state       String
   pincode     String?
   description String?
-
   latitude    Float
   longitude   Float
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   destinations Destination[]
 
@@ -131,16 +146,76 @@ model Village {
 }
 
 model Category {
-  id          String @id @default(cuid())
-  name        String @unique
-  slug        String @unique
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
   icon        String?
   description String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   destinations DestinationCategory[]
+}
+
+model Destination {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  shortDescription  String
+  description       String
+  villageId         String
+  latitude          Float
+  longitude         Float
+  coverImage        String?
+  bestSeason        String?
+  /// Months (1–12) that are the best time to visit; drives the calendar and "Best right now".
+  bestMonths        Int[]    @default([])
+  openingHours      String?
+  estimatedDuration String?
+  entryFee          String?
+  accessibility     String?
+  safetyInfo        String?
+  /// [{ label, value, note? }]
+  emergencyContacts Json?
+  tags              String[] @default([])
+  history           String?
+  culture           String?
+  religion          String?
+  traditions        String?
+  language          String?
+  food              String?
+  thingsToDo        String[] @default([])
+  nearbyAttractions String[] @default([])
+  transportation    String?
+  /// [{ name, type?, contact?, address?, note? }]
+  hotels            Json?
+  /// [{ name, type?, contact?, address?, note? }]
+  homestays         Json?
+  hiddenGems        String[] @default([])
+  isFeatured        Boolean  @default(false)
+  /// Cached from APPROVED reviews by lib/services/review.service.js
+  ratingAverage     Float    @default(0)
+  reviewCount       Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  village               Village               @relation(fields: [villageId], references: [id], onDelete: Restrict)
+  photos                DestinationPhoto[]
+  destinationCategories DestinationCategory[]
+  experiences           Experience[]
+  festivals             Festival[]
+  stories               Story[]
+  reviews               Review[]
+  savedBy               SavedDestination[]
+  trips                 Trip[]
+  tripItems             TripItem[]
+  guideAreas            GuideArea[]
+  guideRequests         GuideRequest[]
+
+  @@index([villageId])
+  @@index([name])
+  @@index([isFeatured])
+  @@index([ratingAverage])
 }
 
 model DestinationCategory {
@@ -148,101 +223,114 @@ model DestinationCategory {
   categoryId    String
 
   destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
-
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@id([destinationId, categoryId])
-
   @@index([categoryId])
 }
 
 model DestinationPhoto {
-  id String @id @default(cuid())
-
+  id            String   @id @default(cuid())
   destinationId String
-
-  imageUrl String
-
-  caption String?
-
-  isCover Boolean @default(false)
-
-  displayOrder Int @default(0)
-
-  createdAt DateTime @default(now())
+  imageUrl      String
+  caption       String?
+  isCover       Boolean  @default(false)
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
 
   destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
 
-  @@index([destinationId])
-
-  @@index([displayOrder])
+  @@index([destinationId, displayOrder])
 }
 
 model Review {
-  id String @id @default(cuid())
-
+  id            String       @id @default(cuid())
   destinationId String
+  userId        String
+  rating        Int
+  title         String?
+  comment       String
+  status        ReviewStatus @default(PENDING)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  userId String
+  destination Destination   @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photos      ReviewPhoto[]
 
-  rating Int
-
-  title String?
-
-  comment String
-
-  status ReviewStatus @default(PENDING)
-
-  createdAt DateTime @default(now())
-
-  updatedAt DateTime @updatedAt
-
-  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([destinationId])
-
+  @@unique([destinationId, userId])
+  @@index([destinationId, status])
   @@index([userId])
-
-  @@index([rating])
-
   @@index([status])
 }
 
-model Experience {
-  id             String              @id @default(cuid())
-  destinationId  String
-  title          String
-  description    String
-  category       ExperienceCategory
-  difficulty     String
-  duration       String
-  price          Float
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+model ReviewPhoto {
+  id        String   @id @default(cuid())
+  reviewId  String
+  imageUrl  String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
 
-  destination    Destination         @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, position])
+}
+
+model SavedDestination {
+  userId        String
+  destinationId String
+  createdAt     DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, destinationId])
+  @@index([destinationId])
+}
+
+// ---------------------------------------------------------------------------
+// Content
+// ---------------------------------------------------------------------------
+
+model Experience {
+  id            String             @id @default(cuid())
+  destinationId String
+  title         String
+  description   String
+  category      ExperienceCategory
+  difficulty    String?
+  duration      String?
+  /// Indicative price per person in INR. Null when unknown, 0 when free.
+  price         Float?
+  imageUrl      String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  tripItems   TripItem[]
 
   @@index([destinationId])
   @@index([category])
   @@index([title])
 }
-model Festival {
-  id             String             @id @default(cuid())
-  destinationId  String
-  title          String
-  slug           String             @unique
-  description    String
-  imageUrl       String
-  category       ExperienceCategory
-  startDate      DateTime
-  endDate        DateTime
-  isFeatured     Boolean            @default(false)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
 
-  destination    Destination        @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+model Festival {
+  id            String             @id @default(cuid())
+  destinationId String
+  title         String
+  slug          String             @unique
+  description   String
+  significance  String?
+  imageUrl      String?
+  category      ExperienceCategory @default(FESTIVAL)
+  /// Null when the date has not been announced yet.
+  startDate     DateTime?
+  endDate       DateTime?
+  isFeatured    Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
 
   @@index([destinationId])
   @@index([startDate])
@@ -251,49 +339,165 @@ model Festival {
 }
 
 model Story {
-  id             String   @id @default(cuid())
-  destinationId  String
-  title          String
-  content        String
-  language       String
-  createdAt      DateTime @default(now())
+  id            String   @id @default(cuid())
+  destinationId String
+  title         String
+  slug          String   @unique
+  excerpt       String?
+  content       String
+  coverImage    String?
+  authorName    String?
+  language      String   @default("English")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  destination    Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
 
   @@index([destinationId])
-  @@index([title])
+  @@index([createdAt])
 }
 
+// ---------------------------------------------------------------------------
+// Trip planning
+// ---------------------------------------------------------------------------
+
 model Trip {
-  id        String     @id @default(cuid())
-  userId    String
-  title     String
-  startDate DateTime
-  endDate   DateTime
-  status    TripStatus @default(PLANNING)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id            String     @id @default(cuid())
+  userId        String
+  destinationId String?
+  title         String
+  startDate     DateTime
+  endDate       DateTime
+  notes         String?
+  status        TripStatus @default(PLANNING)
+  travelers     Int        @default(1)
+  /// Estimated spend per person per day in INR (stay, food, local transport).
+  dailyBudget   Int?
+  /// Set when the owner shares a read-only link; null means not shared.
+  shareToken    String?    @unique
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination Destination?        @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+  items       TripItem[]
+  checklist   TripChecklistItem[]
 
-  @@index([userId])
+  @@index([userId, startDate])
+  @@index([status])
+  @@index([destinationId])
+}
+
+model TripItem {
+  id            String   @id @default(cuid())
+  tripId        String
+  /// 1-based day of the trip.
+  day           Int
+  position      Int      @default(0)
+  title         String
+  notes         String?
+  time          String?
+  destinationId String?
+  experienceId  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  trip        Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  destination Destination? @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+  experience  Experience?  @relation(fields: [experienceId], references: [id], onDelete: SetNull)
+
+  @@index([tripId, day, position])
+  @@index([destinationId])
+  @@index([experienceId])
+}
+
+model TripChecklistItem {
+  id        String   @id @default(cuid())
+  tripId    String
+  label     String
+  done      Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, position])
+}
+
+// ---------------------------------------------------------------------------
+// Travel rules and local guides
+// ---------------------------------------------------------------------------
+
+/// Entry permit rules per state (e.g. Inner Line Permit). Keyed by the same state name as Village.state.
+model StatePermit {
+  id             String    @id @default(cuid())
+  state          String    @unique
+  required       Boolean   @default(false)
+  permitName     String?
+  whoNeedsIt     String?
+  howToApply     String?
+  applyUrl       String?
+  fee            String?
+  processingTime String?
+  foreignersNote String?
+  lastVerifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model GuideProfile {
+  id              String      @id @default(cuid())
+  userId          String      @unique
+  headline        String
+  bio             String
+  languages       String[]    @default([])
+  yearsExperience Int         @default(0)
+  /// Shared with a tourist only after the guide accepts their request.
+  phone           String?
+  photoUrl        String?
+  status          GuideStatus @default(PENDING)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  areas    GuideArea[]
+  requests GuideRequest[]
+
   @@index([status])
 }
 
-model Recommendation {
-  id             String   @id @default(cuid())
-  userId         String
-  destinationId  String
-  score          Int
-  reason         String
-  createdAt      DateTime @default(now())
+model GuideArea {
+  guideId       String
+  destinationId String
 
-  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  destination    Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  guide       GuideProfile @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  destination Destination  @relation(fields: [destinationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@id([guideId, destinationId])
   @@index([destinationId])
-  @@index([score])
+}
+
+model GuideRequest {
+  id            String             @id @default(cuid())
+  guideId       String
+  touristId     String
+  destinationId String?
+  startDate     DateTime
+  endDate       DateTime
+  groupSize     Int                @default(1)
+  message       String
+  status        GuideRequestStatus @default(NEW)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  guide       GuideProfile @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  tourist     User         @relation(fields: [touristId], references: [id], onDelete: Cascade)
+  destination Destination? @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+
+  @@index([guideId, status])
+  @@index([touristId])
+  @@index([destinationId])
 }
 
 model PlatformSetting {
@@ -302,6 +506,4 @@ model PlatformSetting {
   value     Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@index([key])
 }

@@ -1,35 +1,12 @@
-import { requireAdminUser } from "@/lib/api/auth";
-import { getQueryParams, readJsonBody } from "@/lib/api/request";
-import { handleApiError, successResponse } from "@/lib/api/response";
+import { getQueryParams } from "@/lib/api/request";
+import { successResponse, withErrorHandling } from "@/lib/api/response";
 import { validate } from "@/lib/api/validation";
-import { createFestivalSchema, festivalQuerySchema } from "@/lib/validators/festival";
-import { createFestival, listFestivals } from "@/services/festival";
+import { listFestivals } from "@/lib/services/festival.service";
+import { festivalQuerySchema } from "@/lib/validators/content";
 
-export async function GET(request) {
-  try {
-    const query = validate(festivalQuerySchema, getQueryParams(request));
-    const festivals = await listFestivals(query);
+export const GET = withErrorHandling(async (request) => {
+  const query = validate(festivalQuerySchema, getQueryParams(request));
+  const { data, meta } = await listFestivals(query);
 
-    return successResponse(festivals, {
-      message: "Festivals retrieved successfully",
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
-
-export async function POST(request) {
-  try {
-    await requireAdminUser();
-
-    const body = validate(createFestivalSchema, await readJsonBody(request));
-    const festival = await createFestival(body);
-
-    return successResponse(festival, {
-      status: 201,
-      message: "Festival created successfully",
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+  return successResponse(data, { message: "Festivals loaded", meta });
+});

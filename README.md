@@ -1,39 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Smart Tourism
 
-## Getting Started
+Discover places, explore experiences and plan trips across Northeast India.
 
-First, run the development server:
+## Getting started
+
+Requirements: Node.js 20+, PostgreSQL 14+.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install                 # also runs `prisma generate`
+cp .env.example .env        # then fill in the values (see below)
+npm run db:migrate          # apply all migrations
+npm run db:seed             # sample destinations, experiences, festivals, stories
+npm run dev                 # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+To also create demo accounts (`admin@tourism-platform.com` / `Admin@123`, `tourist@tourism-platform.com` / `Tourist@123`),
+seed with `SEED_DEMO_ACCOUNTS=true npm run db:seed`. **Never do this on a production database.**
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | PostgreSQL connection string |
+| `BETTER_AUTH_SECRET` | yes (production) | Signs session cookies. Generate with `openssl rand -base64 32`. The app refuses to start in production without it. |
+| `BETTER_AUTH_URL` | yes | Public base URL of the site, e.g. `https://example.com` |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | no | Comma-separated extra origins allowed to call the auth API |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | yes (production uploads) | Photo storage. Without them, development saves uploads to `public/uploads/` and production refuses uploads (image links still work). |
+| `NEXT_PUBLIC_MAP_TILE_URL`, `NEXT_PUBLIC_MAP_ATTRIBUTION` | no | Map tiles. Defaults to OpenStreetMap, which is fine for light use; use a tile provider for real traffic. |
+| `OPEN_METEO_API_KEY` | commercial use | Weather forecasts. Open-Meteo is free for non-commercial use; set a key for the commercial endpoint. |
+| `OVERPASS_API_URL` | no | Override the OpenStreetMap Overpass endpoint used for nearby places |
 
-## Learn More
+No API keys are needed to run it: maps use OpenStreetMap tiles, nearby places come from the Overpass API (cached a day), and weather from Open-Meteo (cached 30 minutes). Each fails gracefully with a retry message rather than breaking the page.
 
-To learn more about Next.js, take a look at the following resources:
+### Upgrading an existing database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Migration `20260926000000_platform_overhaul` moves authentication to Better Auth and cleans up the schema. It keeps existing data:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+* existing password hashes are moved into Better Auth credential accounts, so everyone can still sign in with their current password;
+* destination state/district now come from the village (they already matched);
+* `fullDescription` and `heroImage` are merged into `description` and `coverImage`;
+* users with the removed `GOVERNMENT` role become `TOURIST`;
+* duplicate reviews by the same traveler for the same destination are reduced to the newest one.
 
-## Deploy on Vercel
+Everyone has to sign in again after upgrading (old JWT cookies are no longer accepted).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Migration `20260927000000_heritage_features` is additive only (best months, entry permits, trip budgets/sharing/checklists, review photos, local guides). Afterwards, fill in best months from each destination's existing "best season" text:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pg_dump "$DATABASE_URL" -Fc -f backup-before-upgrade.dump
+npm run db:migrate
+node scripts/backfill-best-months.mjs --dry   # preview
+node scripts/backfill-best-months.mjs          # apply (safe to re-run)
+```
+
+### Scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` / `build` / `start` | Next.js development server, production build, production server |
+| `npm run lint` | ESLint |
+| `npm test` | Unit tests (Node's built-in test runner, no extra dependencies) |
+| `node scripts/smoke-test.mjs` | End-to-end check of pages, APIs, auth and permissions against a running server. It writes data, so use a dev/test database. Set `BASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`. |
+| `npm run db:migrate` / `db:seed` | Apply migrations / seed content and baseline permit rules |
+| `node scripts/backfill-best-months.mjs` | Fill `bestMonths` from free-text best seasons (`--dry` to preview) |
+
+## How it's built
+
+```
+Browser → Next.js App Router (server components, route handlers, server actions)
+        → services (business rules)  → repositories (Prisma queries) → PostgreSQL
+```
+
+* `app/(site)` — public pages (destinations, experiences, festivals, stories, guides, shared trips at `/t/[token]`) and the signed-in area (`(account)`: dashboard, trips, saved places, profile, guide dashboard).
+* `app/admin` — the admin panel, with its own layout. Every admin page and API checks the `ADMIN` role on the server.
+* `app/api` — JSON API. Public endpoints are read-only; all content changes go through `/api/admin/[resource]`.
+  Tourist actions: `/api/trips…`, `/api/destinations/[id]/save`, `/api/destinations/[id]/reviews`.
+  Authentication: `/api/auth/*` (Better Auth).
+* `lib/services`, `lib/repositories`, `lib/validators` (Zod), `lib/auth` (Better Auth config and session helpers).
+* `components/ui` — shared design system (buttons, fields, cards, dialogs, toasts, empty/error states).
+* `proxy.js` — redirects signed-out visitors away from account/admin pages early; real checks happen on the server.
+
+Roles: `TOURIST` (default), `GUIDE` and `ADMIN`. Anyone can apply to be a guide; approving the application in the admin panel makes the account a `GUIDE`, and unlisting turns it back into a `TOURIST`. Only admins can change roles; admins can't remove their own access or the last admin.
+
+Privacy rules worth knowing:
+* A guide's phone and email, and a traveler's email and phone, are shared with each other only after the guide accepts a request.
+* Shared trip links (`/t/…`) show the itinerary and route only — never notes, budget, checklist or the owner's contact details — and are not indexed. Regenerating or turning off sharing kills the old link.
+* Uploads are checked by their actual bytes (JPEG, PNG, WebP, AVIF, ≤ 8 MB), stored under server-generated names, and content folders are admin-only.
+
+Design: the "Handloom Heritage" system lives in `app/globals.css` (light/dark tokens), `components/ui/weave.js` (woven-textile accents) and Fraunces display type. Components use semantic colour names (`surface`, `ink`, `line`, `link`…), so both themes come from the tokens.
+
+Recommendations are rule-based and explained on screen ("Because you saved Kaziranga · Wildlife"): shared interests with places a traveler saved, planned or rated highly, the same state, and overall ratings.
+
 # Tourist-Platform
 
 # 🌏 Smart Tourism Experience Intelligence Platform
@@ -293,7 +350,6 @@ Tourist Dashboard
  ▼
 Government Analytics
 ```
-
 ---
 
 # 🏗️ Technology Stack
@@ -324,26 +380,27 @@ Government Analytics
 
 ## Security
 
-* bcrypt
-* JWT (where applicable)
+* Better Auth sessions (database-backed, httpOnly cookies)
+* bcrypt password hashing (kept for compatibility with existing accounts)
 
 ---
 
 # 📂 Project Structure
 
 ```
-app/
-actions/
-components/
-constants/
-context/
-hooks/
-lib/
-prisma/
-public/
-services/
-styles/
-utils/
+app/(site)/        public pages + (account) tourist area
+app/admin/         admin panel
+app/api/           JSON API (public read-only, tourist, admin, auth)
+actions/auth/      sign-in, sign-up, sign-out, profile server actions
+components/        ui/ (design system), cards/, destination/, trips/, admin/, layout/
+lib/auth/          Better Auth config, session and role helpers
+lib/services/      business rules
+lib/repositories/  Prisma queries
+lib/validators/    Zod schemas
+lib/utils/         formatting, geo, API client helpers
+prisma/            schema, migrations, seed
+scripts/           smoke test
+tests/             unit tests
 ```
 
 The project follows a modular architecture where business logic is separated from UI components.
@@ -369,16 +426,6 @@ The project follows a modular architecture where business logic is separated fro
 * Manage experiences
 * Manage stories
 * Manage users
-
----
-
-## Government
-
-* Tourism analytics
-* Reports
-* Visitor trends
-* Destination insights
-* Sustainable tourism metrics
 
 ---
 

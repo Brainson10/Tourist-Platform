@@ -1,21 +1,11 @@
-import {
-  deleteDestinationController,
-  getDestinationController,
-  updateDestinationController,
-} from "@/lib/controllers/destination.controller";
+import { successResponse, withErrorHandling } from "@/lib/api/response";
+import { validate } from "@/lib/api/validation";
+import { getDestinationBySlugOrId } from "@/lib/services/destination.service";
+import { idParamSchema } from "@/lib/validators/common";
 
-export async function GET(request, context) {
-  return getDestinationController(request, context);
-}
+export const GET = withErrorHandling(async (_request, { params }) => {
+  const { id } = validate(idParamSchema, await params);
+  const destination = await getDestinationBySlugOrId(id);
 
-export async function PUT(request, context) {
-  return updateDestinationController(request, context);
-}
-
-export async function PATCH(request, context) {
-  return updateDestinationController(request, context);
-}
-
-export async function DELETE(request, context) {
-  return deleteDestinationController(request, context);
-}
+  return successResponse(destination, { message: "Destination loaded" });
+});

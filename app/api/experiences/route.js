@@ -1,35 +1,12 @@
-import { requireAuthenticatedUser } from "@/lib/api/auth";
-import { getQueryParams, readJsonBody } from "@/lib/api/request";
-import { handleApiError, successResponse } from "@/lib/api/response";
+import { getQueryParams } from "@/lib/api/request";
+import { successResponse, withErrorHandling } from "@/lib/api/response";
 import { validate } from "@/lib/api/validation";
-import { createExperienceSchema, experienceQuerySchema } from "@/lib/validators/experience";
-import { createExperience, listExperiences } from "@/services/experience";
+import { listExperiences } from "@/lib/services/experience.service";
+import { experienceQuerySchema } from "@/lib/validators/content";
 
-export async function GET(request) {
-  try {
-    const query = validate(experienceQuerySchema, getQueryParams(request));
-    const experiences = await listExperiences(query);
+export const GET = withErrorHandling(async (request) => {
+  const query = validate(experienceQuerySchema, getQueryParams(request));
+  const { data, meta } = await listExperiences(query);
 
-    return successResponse(experiences, {
-      message: "Experiences retrieved successfully",
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
-
-export async function POST(request) {
-  try {
-    await requireAuthenticatedUser();
-
-    const body = validate(createExperienceSchema, await readJsonBody(request));
-    const experience = await createExperience(body);
-
-    return successResponse(experience, {
-      status: 201,
-      message: "Experience created successfully",
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+  return successResponse(data, { message: "Experiences loaded", meta });
+});

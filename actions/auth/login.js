@@ -1,48 +1,43 @@
 "use server";
 
-import bcrypt from "bcryptjs";
-import prisma from "@/lib/db";
-import { loginSchema } from "@/lib/auth/validators";
-import { setSessionCookie } from "@/lib/auth/session";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth/config";
+import { fieldErrors, loginSchema } from "@/lib/auth/validators";
+import { safeRedirectPath } from "@/lib/utils/safe-redirect";
 
 export async function loginAction(_previousState, formData) {
-  const payload = Object.fromEntries(formData.entries());
-  const parsed = loginSchema.safeParse({
-    ...payload,
-    rememberMe: payload.rememberMe === "on",
-  });
+  const values = {
+    email: String(formData.get("email") ?? ""),
+    password: String(formData.get("password") ?? ""),
+    rememberMe: formData.get("rememberMe") === "on",
+  };
+  const parsed = loginSchema.safeParse(values);
 
   if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.flatten().fieldErrors,
-    };
+    return { errors: fieldErrors(parsed.error), values: { email: values.email } };
   }
 
-  const { email, password, rememberMe } = parsed.data;
-  const user = await prisma.user.findUnique({ where: { email } });
+  let result;
 
-  if (!user) {
-    return {
-      success: false,
-      error: { email: ["Invalid credentials"] },
-    };
+  try {
+    result = await auth.api.signInEmail({
+      body: parsed.data,
+      headers: await headers(),
+    });
+  } catch (error) {
+    if (error?.status === "FORBIDDEN") {
+      return { formError: error.body?.message || "This account has been suspended.", values: { email: values.email } };
+    }
+
+    if (error?.status === "UNAUTHORIZED" || error?.status === "BAD_REQUEST") {
+      return { formError: "Incorrect email or password.", values: { email: values.email } };
+    }
+
+    console.error("[login] failed", error);
+    return { formError: "We couldn't sign you in right now. Please try again in a moment.", values: { email: values.email } };
   }
 
-  const passwordMatches = await bcrypt.compare(password, user.passwordHash);
-
-  if (!passwordMatches) {
-    return {
-      success: false,
-      error: { password: ["Invalid credentials"] },
-    };
-  }
-
-  await setSessionCookie(user, rememberMe);
-
-  return {
-    success: true,
-    message: "Signed in successfully",
-    redirectTo: user.role === "ADMIN" ? "/admin" : "/dashboard",
-  };
+  const fallback = result?.user?.role === "ADMIN" ? "/admin" : "/dashboard";
+  redirect(safeRedirectPath(String(formData.get("redirectTo") ?? ""), fallback));
 }

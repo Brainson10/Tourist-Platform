@@ -1,119 +1,32 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useActionState, useEffect } from "react";
+import { useActionState } from "react";
 import { signupAction } from "@/actions/auth/signup";
+import { Button } from "@/components/ui/button";
+import { Field, FormMessage, Input } from "@/components/ui/field";
 
-const initialState = {
-  success: false,
-  error: null,
-  message: "",
-};
-
-function FieldError({ errors }) {
-  if (!errors?.length) {
-    return null;
-  }
-
-  return <p className="mt-2 text-sm font-medium text-red-700">{errors[0]}</p>;
-}
-
-export function SignupForm() {
-  const router = useRouter();
-  const [state, formAction, isPending] = useActionState(signupAction, initialState);
-
-  useEffect(() => {
-    if (state.success) {
-      router.push("/login");
-      router.refresh();
-    }
-  }, [router, state.success]);
+export function SignupForm({ redirectTo }) {
+  const [state, formAction, pending] = useActionState(signupAction, {});
 
   return (
-    <form action={formAction} className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-950">Create account</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          New accounts start as tourist accounts. Admin access is assigned by the platform owner.
-        </p>
-      </div>
-
-      <div className="mt-6 grid gap-5">
-        <div>
-          <label htmlFor="fullName" className="text-sm font-medium text-slate-700">
-            Full name
-          </label>
-          <input
-            id="fullName"
-            name="fullName"
-            required
-            autoComplete="name"
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"
-          />
-          <FieldError errors={state.error?.fullName} />
-        </div>
-
-        <div>
-          <label htmlFor="email" className="text-sm font-medium text-slate-700">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"
-          />
-          <FieldError errors={state.error?.email} />
-        </div>
-
-        <div>
-          <label htmlFor="password" className="text-sm font-medium text-slate-700">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            autoComplete="new-password"
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"
-          />
-          <FieldError errors={state.error?.password} />
-        </div>
-
-        <div>
-          <label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">
-            Confirm password
-          </label>
-          <input
-            id="confirmPassword"
-            name="confirmPassword"
-            type="password"
-            required
-            autoComplete="new-password"
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"
-          />
-          <FieldError errors={state.error?.confirmPassword} />
-        </div>
-
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded-lg bg-slate-950 px-5 py-3 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {isPending ? "Creating account..." : "Create account"}
-        </button>
-      </div>
-
-      <p className="mt-6 text-sm text-slate-600">
-        Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-emerald-800 hover:text-emerald-900">
-          Sign in
-        </Link>
-      </p>
+    <form action={formAction} noValidate className="space-y-4">
+      <input type="hidden" name="redirectTo" value={redirectTo ?? ""} />
+      <Field id="fullName" label="Full name" error={state.errors?.fullName}>
+        {(aria) => <Input {...aria} name="fullName" autoComplete="name" defaultValue={state.values?.fullName ?? ""} />}
+      </Field>
+      <Field id="email" label="Email" error={state.errors?.email}>
+        {(aria) => <Input {...aria} name="email" type="email" autoComplete="email" defaultValue={state.values?.email ?? ""} />}
+      </Field>
+      <Field id="password" label="Password" hint="At least 8 characters, with a letter and a number." error={state.errors?.password}>
+        {(aria) => <Input {...aria} name="password" type="password" autoComplete="new-password" />}
+      </Field>
+      <Field id="confirmPassword" label="Confirm password" error={state.errors?.confirmPassword}>
+        {(aria) => <Input {...aria} name="confirmPassword" type="password" autoComplete="new-password" />}
+      </Field>
+      <FormMessage>{state.formError}</FormMessage>
+      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+        {pending ? "Creating account…" : "Create account"}
+      </Button>
     </form>
   );
 }

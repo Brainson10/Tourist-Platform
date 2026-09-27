@@ -1,35 +1,19 @@
 import { requireAuthenticatedUser } from "@/lib/api/auth";
-import { getQueryParams, readJsonBody } from "@/lib/api/request";
-import { handleApiError, successResponse } from "@/lib/api/response";
+import { readJsonBody } from "@/lib/api/request";
+import { successResponse, withErrorHandling } from "@/lib/api/response";
 import { validate } from "@/lib/api/validation";
-import { createTripSchema, tripQuerySchema } from "@/lib/validators/trip";
-import { createTripForUser, listTripsForUser } from "@/services/trip";
+import { createTrip, listTrips } from "@/lib/services/trip.service";
+import { createTripSchema } from "@/lib/validators/trip";
 
-export async function GET(request) {
-  try {
-    const user = await requireAuthenticatedUser();
-    const query = validate(tripQuerySchema, getQueryParams(request));
-    const trips = await listTripsForUser(user.id, query);
+export const GET = withErrorHandling(async () => {
+  const user = await requireAuthenticatedUser();
 
-    return successResponse(trips, {
-      message: "Trips retrieved successfully",
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+  return successResponse(await listTrips(user.id), { message: "Trips loaded" });
+});
 
-export async function POST(request) {
-  try {
-    const user = await requireAuthenticatedUser();
-    const body = validate(createTripSchema, await readJsonBody(request));
-    const trip = await createTripForUser(user.id, body);
+export const POST = withErrorHandling(async (request) => {
+  const user = await requireAuthenticatedUser();
+  const input = validate(createTripSchema, await readJsonBody(request));
 
-    return successResponse(trip, {
-      status: 201,
-      message: "Trip created successfully",
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+  return successResponse(await createTrip(user.id, input), { status: 201, message: "Trip created" });
+});

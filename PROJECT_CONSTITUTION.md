@@ -26,10 +26,12 @@ AI.
 
 ## User Roles
 
--   Tourist
--   Guide
+-   Tourist (default for new accounts)
+-   Guide (same access as a tourist until guide tools exist)
 -   Administrator
--   Government
+
+Roles are enforced on the server in every page, layout and API route.
+Hiding UI is never the only protection.
 
 ## Core Modules
 
@@ -43,8 +45,7 @@ AI.
 -   AI Trip Planner
 -   Recommendation Engine
 -   Tourist Dashboard
--   Guide Dashboard
--   Government Dashboard
+-   Guide Dashboard (future)
 -   Admin Dashboard
 
 ## Tourism CMS
@@ -146,6 +147,40 @@ Outputs:
 -   Festival recommendations
 -   Safety advice
 
+## Local guides
+
+-   Anyone can apply; admins approve. Approval grants the GUIDE role,
+    unlisting reverts it.
+-   Contact details (phone, email) are exchanged only after a guide
+    accepts a request. The platform takes no payments.
+
+## Travel rules and planning data
+
+-   Entry permits (e.g. Inner Line Permit) are stored per state and
+    shown on every destination in that state, with a "last checked"
+    date. Never present permit details as verified unless an admin
+    has checked them.
+-   `bestMonths` (1–12) is the structured best time to visit; the
+    free-text `bestSeason` is kept for nuance.
+-   Weather, nearby places and maps come from external services and
+    must degrade to a friendly message, never an error page.
+
+## Uploads
+
+-   Validate images by content (magic bytes), cap size, generate file
+    names on the server. Content folders are admin-only.
+-   Production storage is Cloudinary; local disk is development only.
+
+## Data rules
+
+-   A destination's district and state always come from its village.
+    Never store them on the destination.
+-   Ratings shown on destinations are cached from APPROVED reviews only
+    (`ratingAverage`, `reviewCount`) and refreshed whenever a review changes.
+-   One review per traveler per destination. New and edited reviews are
+    PENDING unless "auto-approve reviews" is on in admin settings.
+-   Recommendations are rule-based and must always show the reason.
+
 ## Architecture
 
 Browser
@@ -179,6 +214,10 @@ Prisma
 PostgreSQL
 
 Never access Prisma directly from UI components.
+
+Content mutations exist only in the admin API (`/api/admin/[resource]`),
+which routes each resource to its domain service. Public API routes are
+read-only.
 
 ## Coding Standards
 

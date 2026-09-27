@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
+import { parseBestMonths } from "../lib/utils/months.js";
 
 dotenv.config();
 
@@ -18,32 +19,48 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+/**
+ * Demo accounts have well-known passwords, so they are only created when
+ * SEED_DEMO_ACCOUNTS=true. Never enable this against a production database.
+ */
+async function seedDemoAccounts() {
+  const accounts = [
+    { fullName: "Admin User", email: "admin@tourism-platform.com", password: "Admin@123", role: "ADMIN" },
+    { fullName: "Tourist User", email: "tourist@tourism-platform.com", password: "Tourist@123", role: "TOURIST" },
+    { fullName: "Guide User", email: "guide@tourism-platform.com", password: "Guide@123", role: "GUIDE" },
+  ];
+  const users = {};
+
+  for (const account of accounts) {
+    const user = await prisma.user.upsert({
+      where: { email: account.email },
+      update: {},
+      create: { fullName: account.fullName, email: account.email, role: account.role, emailVerified: true },
+    });
+
+    const existingCredential = await prisma.account.findFirst({ where: { userId: user.id, providerId: "credential" } });
+
+    if (!existingCredential) {
+      await prisma.account.create({
+        data: {
+          id: `acc_${user.id}`,
+          userId: user.id,
+          accountId: user.id,
+          providerId: "credential",
+          password: await bcrypt.hash(account.password, 12),
+        },
+      });
+    }
+
+    users[account.role] = user;
+    console.log(`Demo ${account.role.toLowerCase()}: ${account.email} / ${account.password}`);
+  }
+
+  return users;
+}
+
 async function main() {
-  const passwordHash = await bcrypt.hash("Admin@123", 10);
-
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@tourism-platform.com" },
-    update: {},
-    create: {
-      fullName: "Admin User",
-      email: "admin@tourism-platform.com",
-      passwordHash,
-      role: "ADMIN",
-      phone: "+919876543210",
-    },
-  });
-
-  const tourist = await prisma.user.upsert({
-    where: { email: "tourist@tourism-platform.com" },
-    update: {},
-    create: {
-      fullName: "Tourist User",
-      email: "tourist@tourism-platform.com",
-      passwordHash: await bcrypt.hash("Tourist@123", 10),
-      role: "TOURIST",
-      phone: "+919812345678",
-    },
-  });
+  const demoUsers = process.env.SEED_DEMO_ACCOUNTS === "true" ? await seedDemoAccounts() : null;
 
   const destinationProfiles = [
     {
@@ -61,7 +78,7 @@ async function main() {
       coverImage: "https://images.unsplash.com/photo-1521295121783-8a321d551ad2",
       heroImage: "https://images.unsplash.com/photo-1521295121783-8a321d551ad2",
       galleryImages: [
-        "https://images.unsplash.com/photo-1549366021-9f761d040a94",
+        "https://images.unsplash.com/photo-1469474968028-56623f02e42e",
         "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
         "https://images.unsplash.com/photo-1501785888041-af3ef285b470",
       ],
@@ -364,23 +381,29 @@ async function main() {
   const destinations = [];
 
   for (const destination of destinationProfiles) {
-    const { galleryImages, categories, villageName, ...destinationData } = destination;
+    const { galleryImages, categories, villageName, state, district, heroImage, fullDescription, description, ...rest } = destination;
+    const destinationData = {
+      ...rest,
+      description: fullDescription ?? description,
+      coverImage: rest.coverImage ?? heroImage,
+      bestMonths: parseBestMonths(rest.bestSeason),
+    };
     const village = await prisma.village.upsert({
       where: {
         name_district: {
           name: villageName,
-          district: destination.district,
+          district,
         },
       },
       update: {
-        state: destination.state,
+        state,
         latitude: destination.latitude,
         longitude: destination.longitude,
       },
       create: {
         name: villageName,
-        district: destination.district,
-        state: destination.state,
+        district,
+        state,
         latitude: destination.latitude,
         longitude: destination.longitude,
         description: `Tourism service village for ${villageName}.`,
@@ -437,56 +460,19 @@ async function main() {
   const tawang = destinations[1];
   const shillong = destinations[2];
 
-  await prisma.experience.createMany({
-    data: [
-      {
-        destinationId: kaziranga.id,
-        title: "Elephant Grassland Safari",
-        description: "A guided safari through the rolling grasslands with wildlife spotting.",
-        category: "WILDLIFE",
-        difficulty: "Moderate",
-        duration: "3 hours",
-        price: 1200,
-      },
-      {
-        destinationId: kaziranga.id,
-        title: "Village Heritage Walk",
-        description: "Meet local communities and experience traditional hospitality.",
-        category: "CULTURE",
-        difficulty: "Easy",
-        duration: "2 hours",
-        price: 600,
-      },
-      {
-        destinationId: tawang.id,
-        title: "Monastery Trail",
-        description: "Discover sacred architecture and high-altitude traditions.",
-        category: "SPIRITUAL",
-        difficulty: "Moderate",
-        duration: "4 hours",
-        price: 900,
-      },
-      {
-        destinationId: shillong.id,
-        title: "Local Food Discovery Tour",
-        description: "Taste regional street food and seasonal market favorites.",
-        category: "FOOD",
-        difficulty: "Easy",
-        duration: "2 hours",
-        price: 700,
-      },
-      {
-        destinationId: shillong.id,
-        title: "Cloud-Kissed Nature Walk",
-        description: "Enjoy a scenic walk through pine forests and viewpoints.",
-        category: "NATURE",
-        difficulty: "Easy",
-        duration: "2.5 hours",
-        price: 800,
-      },
-    ],
-    skipDuplicates: true,
-  });
+  const experiences = [
+    { destinationId: kaziranga.id, title: "Elephant Grassland Safari", description: "A guided safari through the rolling grasslands with wildlife spotting.", category: "WILDLIFE", difficulty: "Moderate", duration: "3 hours", price: 1200 },
+    { destinationId: kaziranga.id, title: "Village Heritage Walk", description: "Meet local communities and experience traditional hospitality.", category: "CULTURE", difficulty: "Easy", duration: "2 hours", price: 600 },
+    { destinationId: tawang.id, title: "Monastery Trail", description: "Discover sacred architecture and high-altitude traditions.", category: "SPIRITUAL", difficulty: "Moderate", duration: "4 hours", price: 900 },
+    { destinationId: shillong.id, title: "Local Food Discovery Tour", description: "Taste regional street food and seasonal market favorites.", category: "FOOD", difficulty: "Easy", duration: "2 hours", price: 700 },
+    { destinationId: shillong.id, title: "Cloud-Kissed Nature Walk", description: "Enjoy a scenic walk through pine forests and viewpoints.", category: "NATURE", difficulty: "Easy", duration: "2.5 hours", price: 800 },
+  ];
+
+  // Experiences have no natural unique key, so check before inserting to keep the seed re-runnable.
+  for (const experience of experiences) {
+    const exists = await prisma.experience.findFirst({ where: { destinationId: experience.destinationId, title: experience.title }, select: { id: true } });
+    if (!exists) await prisma.experience.create({ data: experience });
+  }
 
   await prisma.festival.createMany({
     data: [
@@ -505,43 +491,13 @@ async function main() {
         destinationId: tawang.id,
         title: "Tawang Losar",
         slug: "tawang-losar",
-        startDate: new Date("2026-02-10"),
-        endDate: new Date("2026-02-12"),
+        startDate: new Date("2027-02-07"),
+        endDate: new Date("2027-02-09"),
         description: "A festive celebration featuring rituals, dance, and local cuisine.",
+        significance: "Losar marks the Tibetan Buddhist new year. Monasteries hold prayers and masked dances, and families gather to share food and visit relatives.",
         imageUrl: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200",
         category: "FESTIVAL",
         isFeatured: true,
-      },
-    ],
-    skipDuplicates: true,
-  });
-
-  await prisma.trip.createMany({
-    data: [
-      {
-        userId: tourist.id,
-        title: "Northeast Cultural Escape",
-        startDate: new Date("2026-10-01"),
-        endDate: new Date("2026-10-05"),
-        status: "PLANNING",
-      },
-    ],
-    skipDuplicates: true,
-  });
-
-  await prisma.recommendation.createMany({
-    data: [
-      {
-        userId: tourist.id,
-        destinationId: kaziranga.id,
-        score: 95,
-        reason: "Excellent wildlife and scenic value for a short getaway.",
-      },
-      {
-        userId: tourist.id,
-        destinationId: shillong.id,
-        score: 92,
-        reason: "Great for relaxed travel and local food experiences.",
       },
     ],
     skipDuplicates: true,
@@ -552,18 +508,99 @@ async function main() {
       {
         destinationId: kaziranga.id,
         title: "Guardians of the Grasslands",
+        slug: "guardians-of-the-grasslands",
+        excerpt: "Local guides share stories of rhinos, riverbanks, and the living landscape of Kaziranga.",
         content: "Local guides share stories of rhinos, riverbanks, and the living landscape of Kaziranga.",
         language: "English",
       },
       {
         destinationId: tawang.id,
         title: "Mountain Monastery Voices",
+        slug: "mountain-monastery-voices",
+        excerpt: "Monastery elders recount the spiritual history of Tawang and its valleys.",
         content: "Monastery elders recount the spiritual history of Tawang and its valleys.",
         language: "English",
       },
     ],
     skipDuplicates: true,
   });
+
+  await seedPermits();
+
+  if (demoUsers?.GUIDE) {
+    await prisma.guideProfile.upsert({
+      where: { userId: demoUsers.GUIDE.id },
+      update: {},
+      create: {
+        userId: demoUsers.GUIDE.id,
+        headline: "Wildlife and monastery trails in Assam and Arunachal",
+        bio: "I grew up near Kohora and have guided safaris and village walks for a decade. I also lead slow monastery routes around Tawang in the open season.",
+        languages: ["English", "Hindi", "Assamese"],
+        yearsExperience: 10,
+        phone: "+91 90000 00000",
+        status: "APPROVED",
+        areas: { create: [{ destinationId: kaziranga.id }, { destinationId: tawang.id }] },
+      },
+    });
+  }
+
+  if (demoUsers?.TOURIST) {
+    const hasTrip = await prisma.trip.findFirst({ where: { userId: demoUsers.TOURIST.id }, select: { id: true } });
+
+    if (!hasTrip) {
+      const experienceId = async (title) => (await prisma.experience.findFirst({ where: { destinationId: kaziranga.id, title }, select: { id: true } }))?.id ?? null;
+      const safariId = await experienceId("Elephant Grassland Safari");
+      const walkId = await experienceId("Village Heritage Walk");
+      await prisma.trip.create({
+        data: {
+          userId: demoUsers.TOURIST.id,
+          destinationId: kaziranga.id,
+          title: "Kaziranga long weekend",
+          startDate: new Date("2026-12-04"),
+          endDate: new Date("2026-12-06"),
+          items: {
+            create: [
+              { day: 1, position: 0, title: "Arrive at Kaziranga", destinationId: kaziranga.id },
+              { day: 2, position: 0, time: "6:00 AM", title: "Elephant Grassland Safari", destinationId: kaziranga.id, experienceId: safariId },
+              { day: 3, position: 0, title: "Village Heritage Walk", destinationId: kaziranga.id, experienceId: walkId },
+            ],
+          },
+        },
+      });
+    }
+  }
+}
+
+/**
+ * Baseline entry rules. Only the well-known "who needs an Inner Line Permit" facts are seeded;
+ * portals, fees and processing times must be added and verified by an admin.
+ * Existing rows are never overwritten.
+ */
+async function seedPermits() {
+  const ilp = {
+    required: true,
+    permitName: "Inner Line Permit (ILP)",
+    whoNeedsIt: "Indian citizens from outside the state. Foreign nationals need a Protected Area Permit (PAP) instead.",
+    howToApply: "Apply through the state government's official ILP portal or at designated counters before you travel. Carry printed and digital copies with your ID.",
+  };
+  const permits = [
+    { state: "Arunachal Pradesh", ...ilp },
+    { state: "Nagaland", ...ilp },
+    { state: "Mizoram", ...ilp },
+    { state: "Manipur", ...ilp },
+    { state: "Assam", required: false, whoNeedsIt: "No entry permit is needed to visit Assam." },
+    { state: "Meghalaya", required: false, whoNeedsIt: "No entry permit is currently needed to visit Meghalaya." },
+    { state: "Tripura", required: false, whoNeedsIt: "No entry permit is needed to visit Tripura." },
+    {
+      state: "Sikkim",
+      required: false,
+      whoNeedsIt: "No permit is needed to enter Sikkim, but protected areas such as parts of North and East Sikkim need a special permit. Foreign nationals need a Restricted Area Permit.",
+    },
+  ];
+
+  for (const permit of permits) {
+    await prisma.statePermit.upsert({ where: { state: permit.state }, update: {}, create: permit });
+  }
 }
 
 main()

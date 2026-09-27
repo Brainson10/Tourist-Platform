@@ -1,86 +1,98 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { AdminCmsClient } from "@/components/admin/admin-cms-client";
-import { PageShell } from "@/components/shared/page-shell";
-import { getAuthenticatedUser } from "@/lib/api/auth";
-import { getDestinationAdminOptions, listDestinationCollection } from "@/lib/services/destination.service";
-import { getAdminDashboardStats, getAdminOptions, listAdminResource } from "@/lib/services/admin.service";
+import { AdminHeader } from "@/components/admin/admin-header";
+import { ReviewModeration } from "@/components/admin/review-moderation";
+import { ButtonLink } from "@/components/ui/button";
+import { requireAdminPage } from "@/lib/auth/admin";
+import { getAdminOverview } from "@/lib/services/admin.service";
 
-export const metadata = {
-  title: "Tourism CMS Admin",
-  description: "Admin workspace for managing tourism intelligence content.",
-};
+export const metadata = { title: "Overview" };
 
-export const dynamic = "force-dynamic";
+const STAT_LINKS = [
+  ["destinations", "Destinations", "/admin/destinations"],
+  ["experiences", "Experiences", "/admin/experiences"],
+  ["festivals", "Festivals", "/admin/festivals"],
+  ["stories", "Stories", "/admin/stories"],
+  ["reviews", "Reviews", "/admin/reviews"],
+  ["users", "Users", "/admin/users"],
+  ["guides", "Approved guides", "/admin/guides"],
+  ["villages", "Villages", "/admin/villages"],
+  ["trips", "Trips planned", null],
+];
 
-export default async function AdminPage() {
-  const user = await getAuthenticatedUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  if (user.role !== "ADMIN") {
-    return (
-      <PageShell title="Admin" description="This workspace is restricted to platform administrators.">
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
-          <h2 className="text-xl font-semibold text-slate-950">Admin access required</h2>
-          <p className="mt-3 max-w-2xl leading-7 text-slate-700">
-            Your current account does not have permission to manage destination intelligence records.
-          </p>
-          <Link
-            href="/"
-            className="mt-6 inline-flex rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-          >
-            Back to home
-          </Link>
-        </div>
-      </PageShell>
-    );
-  }
-
-  const [
-    destinations,
-    destinationOptions,
-    stats,
-    adminOptions,
-    villages,
-    categories,
-    festivals,
-    experiences,
-    stories,
-    reviews,
-    users,
-    settings,
-  ] = await Promise.all([
-    listDestinationCollection({ page: 1, limit: 100, sort: "createdAt" }),
-    getDestinationAdminOptions(),
-    getAdminDashboardStats(),
-    getAdminOptions(),
-    listAdminResource("villages", { page: 1, limit: 10 }),
-    listAdminResource("categories", { page: 1, limit: 10 }),
-    listAdminResource("festivals", { page: 1, limit: 10 }),
-    listAdminResource("experiences", { page: 1, limit: 10 }),
-    listAdminResource("stories", { page: 1, limit: 10 }),
-    listAdminResource("reviews", { page: 1, limit: 10 }),
-    listAdminResource("users", { page: 1, limit: 10 }),
-    listAdminResource("settings", { page: 1, limit: 1 }),
-  ]);
+export default async function AdminOverviewPage() {
+  await requireAdminPage("/admin");
+  const { counts, pendingReviews, incompleteDestinations } = await getAdminOverview();
 
   return (
-    <PageShell
-      title="Tourism CMS"
-      description="Manage destinations, villages, categories, festivals, experiences, stories, reviews, users, and platform settings."
-    >
-      <AdminCmsClient
-        initialStats={stats}
-        initialResources={{ villages, categories, festivals, experiences, stories, reviews, users, settings }}
-        destinations={destinations}
-        destinationOptions={{
-          ...destinationOptions,
-          destinations: adminOptions.destinations,
-        }}
-      />
-    </PageShell>
+    <>
+      <AdminHeader title="Overview" description="Content health at a glance.">
+        <ButtonLink href="/admin/destinations/new">＋ New destination</ButtonLink>
+      </AdminHeader>
+
+      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {STAT_LINKS.map(([key, label, href]) => {
+          const body = (
+            <>
+              <dt className="text-sm text-ink-muted">{label}</dt>
+              <dd className="mt-1 text-2xl font-semibold text-ink">{counts[key] ?? 0}</dd>
+            </>
+          );
+
+          return href ? (
+            <Link key={key} href={href} className="rounded-xl border border-line bg-surface p-4 hover:border-line-strong">
+              {body}
+            </Link>
+          ) : (
+            <div key={key} className="rounded-xl border border-line bg-surface p-4">
+              {body}
+            </div>
+          );
+        })}
+      </dl>
+
+      <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section aria-labelledby="pending-title">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 id="pending-title" className="text-lg font-semibold text-ink">
+              Reviews waiting for approval ({counts.pendingReviews})
+            </h2>
+            {counts.pendingReviews > pendingReviews.length ? (
+              <Link href="/admin/reviews?status=PENDING" className="text-sm font-medium text-link hover:underline">
+                See all
+              </Link>
+            ) : null}
+          </div>
+          <ReviewModeration reviews={pendingReviews} />
+        </section>
+
+        <section aria-labelledby="incomplete-title">
+          <h2 id="incomplete-title" className="mb-3 text-lg font-semibold text-ink">
+            Destinations that need attention
+          </h2>
+          {incompleteDestinations.length ? (
+            <ul className="divide-y divide-line rounded-xl border border-line bg-surface">
+              {incompleteDestinations.map((destination) => (
+                <li key={destination.id} className="px-4 py-3">
+                  <Link href={`/admin/destinations/${destination.id}`} className="font-medium text-ink hover:underline">
+                    {destination.name}
+                  </Link>
+                  <p className="text-xs text-ink-muted">
+                    {[
+                      !destination.coverImage && "no cover image",
+                      !destination._count.photos && "no gallery photos",
+                      !destination._count.destinationCategories && "no categories",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rounded-xl border border-line bg-surface p-4 text-sm text-ink-muted">Every destination has photos and categories.</p>
+          )}
+        </section>
+      </div>
+    </>
   );
 }
