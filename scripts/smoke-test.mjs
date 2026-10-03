@@ -105,7 +105,7 @@ const created = {};
 console.log(`Smoke testing ${BASE_URL}\n`);
 
 console.log("Public pages");
-for (const path of ["/", "/destinations", "/destinations?q=lake&sort=rating", "/destinations?featured=false&page=99", "/experiences", "/festivals", "/festivals?when=past", "/stories", "/about", "/contact", "/login", "/signup"]) {
+for (const path of ["/", "/destinations", "/destinations?q=lake&sort=rating", "/destinations?featured=false&page=99", "/experiences", "/festivals", "/festivals?when=past", "/stories", "/souvenirs", "/souvenirs?budget=under-500&for=family&page=9", "/about", "/contact", "/login", "/signup"]) {
   await check(`GET ${path} renders`, async () => {
     const response = await anonymous.request(path);
     assert.equal(response.status, 200);
@@ -114,6 +114,10 @@ for (const path of ["/", "/destinations", "/destinations?q=lake&sort=rating", "/
 }
 await check("unknown destination returns 404", async () => {
   assert.equal((await anonymous.request("/destinations/does-not-exist")).status, 404);
+});
+await check("unknown souvenir returns 404", async () => {
+  assert.equal((await anonymous.request("/souvenirs/does-not-exist")).status, 404);
+  assert.equal((await anonymous.request("/api/souvenirs/does-not-exist")).status, 404);
 });
 await check("unknown page returns 404", async () => {
   assert.equal((await anonymous.request("/nope-not-here")).status, 404);
@@ -144,6 +148,19 @@ await check("destination detail page renders with reviews, map and planning info
   assert.match(response.text, /Nearby &amp; map/);
   assert.match(response.text, /When to go/);
 });
+await check("GET /api/souvenirs paginates and validates filters", async () => {
+  const response = await anonymous.request("/api/souvenirs?limit=2");
+  assert.equal(response.status, 200);
+  assert.ok(Array.isArray(response.json.data) && response.json.meta.total >= response.json.data.length);
+  for (const query of ["budget=cheap", "for=aliens", "quality=plastic", "limit=5000"]) {
+    assert.equal((await anonymous.request(`/api/souvenirs?${query}`)).status, 422, query);
+  }
+  assert.equal((await anonymous.request("/api/souvenirs/recommend?interest=nothing")).status, 422);
+  assert.equal((await anonymous.request("/api/souvenirs/recommend?destination=nowhere")).status, 404);
+});
+await check("destination page has the Take Home a Memory section", async () => {
+  assert.match((await anonymous.request(`/destinations/${destination.slug}`)).text, /Take Home a Memory/);
+});
 await check("nearby places endpoint validates the type", async () => {
   assert.equal((await anonymous.request(`/api/destinations/${destination.id}/nearby-places?type=casino`)).status, 422);
   const response = await anonymous.request(`/api/destinations/${destination.id}/nearby-places?type=hospital`);
@@ -151,7 +168,7 @@ await check("nearby places endpoint validates the type", async () => {
   assert.equal(typeof response.json.data.available, "boolean");
 });
 await check("public content endpoints are read-only", async () => {
-  for (const path of ["/api/experiences", "/api/festivals", "/api/stories", "/api/destinations"]) {
+  for (const path of ["/api/experiences", "/api/festivals", "/api/stories", "/api/destinations", "/api/souvenirs"]) {
     const response = await anonymous.request(path, { method: "POST", body: { title: "x" } });
     assert.equal(response.status, 405, `${path} should not accept POST`);
   }
@@ -226,6 +243,10 @@ await check("tourist cannot call admin APIs", async () => {
   assert.equal((await tourist.request("/api/admin/categories", { method: "POST", body: { name: "Hack", slug: "hack" } })).status, 403);
   assert.equal((await tourist.request(`/api/admin/destinations/${destination.id}`, { method: "DELETE" })).status, 403);
   assert.equal((await tourist.request("/api/admin/settings", { method: "PUT", body: {} })).status, 403);
+  for (const resource of ["souvenirs", "souvenir-categories", "sellers"]) {
+    assert.equal((await tourist.request(`/api/admin/${resource}`)).status, 403, resource);
+    assert.equal((await tourist.request(`/api/admin/${resource}`, { method: "POST", body: { name: "Hack" } })).status, 403, resource);
+  }
 });
 await check("tourist cannot promote themselves through Better Auth", async () => {
   await tourist.request("/api/auth/update-user", { method: "POST", body: { role: "ADMIN", isBlocked: false } });
@@ -251,6 +272,7 @@ await check("save and unsave a destination", async () => {
 await check("uploads: auth, folder permissions, type and size checks", async () => {
   assert.equal((await anonymous.upload("reviews", PNG)).status, 401);
   assert.equal((await tourist.upload("destinations", PNG)).status, 403, "content folders are admin-only");
+  assert.equal((await tourist.upload("souvenirs", PNG)).status, 403, "souvenir photos are admin-only");
   assert.equal((await tourist.upload("secrets", PNG)).status, 400, "unknown folder");
   const fake = new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>");
   assert.equal((await tourist.upload("reviews", fake, "evil.png")).status, 415, "renamed SVG is rejected by content");
@@ -472,7 +494,7 @@ await check("unlisting a guide hides them and reverts the role", async () => {
 
 console.log("\nAdmin flows");
 await check("admin pages render", async () => {
-  for (const path of ["/admin", "/admin/destinations", "/admin/destinations/new", `/admin/destinations/${destination.id}`, "/admin/villages", "/admin/categories", "/admin/experiences", "/admin/festivals", "/admin/stories", "/admin/reviews", "/admin/users", "/admin/settings"]) {
+  for (const path of ["/admin", "/admin/destinations", "/admin/destinations/new", `/admin/destinations/${destination.id}`, "/admin/villages", "/admin/categories", "/admin/experiences", "/admin/festivals", "/admin/stories", "/admin/reviews", "/admin/users", "/admin/settings", "/admin/souvenirs", "/admin/souvenirs/new", "/admin/souvenir-categories", "/admin/sellers"]) {
     const response = await admin.request(path);
     assert.equal(response.status, 200, `${path} → ${response.status}`);
   }
@@ -569,6 +591,132 @@ await check("story CRUD", async () => {
   created.storyId = create.json.data.id;
   assert.equal((await anonymous.request(`/stories/smoke-story-${RUN}`)).status, 200);
 });
+await check("a destination without souvenirs shows the empty state", async () => {
+  assert.match((await anonymous.request(`/destinations/smoke-falls-${RUN}`)).text, /No local treasures have been added yet/);
+});
+await check("souvenir categories and places to buy: CRUD and validation", async () => {
+  const category = await admin.request("/api/admin/souvenir-categories", { method: "POST", body: { name: `Smoke Crafts ${RUN}`, slug: `smoke-crafts-${RUN}`, icon: "pottery" } });
+  assert.equal(category.status, 201, category.text);
+  created.souvenirCategoryId = category.json.data.id;
+  assert.equal((await admin.request("/api/admin/souvenir-categories", { method: "POST", body: { name: `Other ${RUN}`, slug: `smoke-crafts-${RUN}` } })).status, 409, "duplicate slug");
+  assert.equal((await admin.request("/api/admin/souvenir-categories", { method: "POST", body: { name: `Icon ${RUN}`, slug: `icon-${RUN}`, icon: "<script>" } })).status, 422, "unknown icon");
+
+  const seller = { name: `Smoke Market ${RUN}`, slug: `smoke-market-${RUN}`, kind: "MARKET", villageId: created.villageId, latitude: 25.21, longitude: 91.91, openingHours: "Daily 8–5", phone: "+91 98765 43210" };
+  assert.equal((await admin.request("/api/admin/sellers", { method: "POST", body: { ...seller, website: "http://insecure.example" } })).status, 422, "https only");
+  assert.equal((await admin.request("/api/admin/sellers", { method: "POST", body: { ...seller, latitude: 123 } })).status, 422, "latitude range");
+  assert.equal((await admin.request("/api/admin/sellers", { method: "POST", body: { ...seller, kind: "MALL" } })).status, 422, "seller kind");
+  assert.equal((await admin.request("/api/admin/sellers", { method: "POST", body: { ...seller, villageId: "missing" } })).status, 400, "unknown village");
+  const created1 = await admin.request("/api/admin/sellers", { method: "POST", body: seller });
+  assert.equal(created1.status, 201, created1.text);
+  created.sellerId = created1.json.data.id;
+  assert.equal((await admin.request("/api/admin/sellers", { method: "POST", body: seller })).status, 409, "duplicate slug");
+  assert.equal((await admin.request(`/api/admin/sellers/${created.sellerId}`, { method: "PUT", body: { ...seller, isVerified: true } })).status, 200);
+});
+await check("souvenir CRUD: validation, unknown ids and duplicate slugs", async () => {
+  const photo = await admin.upload("souvenirs", PNG);
+  assert.equal(photo.status, 201, "admins can upload souvenir photos");
+  created.souvenirBody = {
+    name: `Smoke Pot ${RUN}`,
+    slug: `smoke-pot-${RUN}`,
+    shortDescription: "A hand-shaped test pot.",
+    description: "Made for the smoke test.\n\nSecond paragraph.",
+    whySpecial: "Nobody else has one.",
+    whyTakeHome: "It proves the feature works.",
+    authenticityTips: "Look for the smoke test stamp.",
+    categoryId: created.souvenirCategoryId,
+    destinationIds: [created.destinationId],
+    sellers: [{ sellerId: created.sellerId, note: "Ask for the black ones" }],
+    priceMin: 300,
+    priceMax: 450,
+    audiences: ["FAMILY", "FRIENDS"],
+    interests: ["CRAFTS"],
+    qualities: ["HANDMADE", "TRADITIONAL"],
+    photos: [{ url: photo.json.data.url, kind: "MAKING" }],
+  };
+  const body = created.souvenirBody;
+  for (const [label, patch] of [
+    ["negative price", { priceMin: -1 }],
+    ["max below min", { priceMin: 500, priceMax: 100 }],
+    ["no destination", { destinationIds: [] }],
+    ["unsafe photo url", { photos: [{ url: "javascript:alert(1)" }] }],
+    ["unknown audience", { audiences: ["ALIENS"] }],
+    ["reserved slug", { slug: "recommend" }],
+    ["missing story", { whySpecial: "" }],
+    ["same place twice", { sellers: [{ sellerId: created.sellerId }, { sellerId: created.sellerId }] }],
+  ]) {
+    assert.equal((await admin.request("/api/admin/souvenirs", { method: "POST", body: { ...body, ...patch } })).status, 422, label);
+  }
+  assert.equal((await admin.request("/api/admin/souvenirs", { method: "POST", body: { ...body, categoryId: "missing" } })).status, 400, "unknown category");
+  assert.equal((await admin.request("/api/admin/souvenirs", { method: "POST", body: { ...body, destinationIds: ["missing"] } })).status, 400, "unknown destination");
+  assert.equal((await admin.request("/api/admin/souvenirs", { method: "POST", body: { ...body, sellers: [{ sellerId: "missing" }] } })).status, 400, "unknown seller");
+  const create = await admin.request("/api/admin/souvenirs", { method: "POST", body });
+  assert.equal(create.status, 201, create.text);
+  created.souvenirId = create.json.data.id;
+  assert.equal((await admin.request("/api/admin/souvenirs", { method: "POST", body })).status, 409, "duplicate slug");
+  assert.equal((await admin.request(`/api/admin/souvenirs/${created.souvenirId}`)).json.data.sellers[0].note, "Ask for the black ones");
+  assert.equal((await admin.request(`/admin/souvenirs/${created.souvenirId}`)).status, 200, "edit page");
+});
+await check("souvenir appears publicly with story, price, places and map", async () => {
+  const detail = await anonymous.request(`/api/souvenirs/smoke-pot-${RUN}`);
+  assert.equal(detail.status, 200, detail.text);
+  assert.equal(detail.json.data.sellers[0].name, `Smoke Market ${RUN}`);
+  assert.ok(detail.json.data.sellers[0].distanceKm < 5, "distance from the destination");
+  assert.equal(detail.json.data.gallery[0].caption, "Being made", "photo kind labels uncaptioned photos");
+  const page = await anonymous.request(`/souvenirs/smoke-pot-${RUN}`);
+  assert.equal(page.status, 200);
+  for (const text of ["Why it&#x27;s special", "Where to buy", `Smoke Market ${RUN}`, "Approx. ₹300–₹450", "Get directions", "Prices are approximate"]) assert.ok(page.text.includes(text), text);
+  const destinationPage = await anonymous.request(`/destinations/smoke-falls-${RUN}`);
+  assert.ok(destinationPage.text.includes(`Smoke Pot ${RUN}`), "shown on its destination");
+  assert.doesNotMatch(destinationPage.text, /No local treasures have been added yet/);
+});
+await check("souvenir filters run on the server", async () => {
+  const has = async (query) => (await anonymous.request(`/api/souvenirs?${query}`)).json.data.some((item) => item.id === created.souvenirId);
+  const at = `destination=smoke-falls-${RUN}`;
+  assert.ok(await has(at), "destination");
+  assert.ok(await has(`state=${encodeURIComponent("test state")}`), "state, case-insensitive");
+  assert.ok(await has(`category=smoke-crafts-${RUN}`), "category");
+  assert.ok(await has(`q=${encodeURIComponent(`smoke pot ${RUN}`)}`), "search");
+  assert.ok(await has(`q=${encodeURIComponent(`Smoke Market ${RUN}`)}`), "search by place to buy");
+  assert.ok(await has(`${at}&budget=under-500&for=family&quality=handmade&interest=crafts`), "all matching filters");
+  assert.ok(!(await has(`${at}&budget=1000-2500`)), "budget excludes");
+  assert.ok(!(await has(`${at}&for=collectors`)), "audience excludes");
+  assert.ok(!(await has(`${at}&quality=artisan-made`)), "quality excludes");
+  const page = await anonymous.request(`/souvenirs?${at}&budget=under-500`);
+  assert.ok(page.text.includes(`Smoke Pot ${RUN}`) && page.text.includes("Under ₹500"), "page shows results and the active chip");
+});
+await check("Help me choose stays in the destination's state and explains itself", async () => {
+  const response = await anonymous.request(`/api/souvenirs/recommend?destination=smoke-falls-${RUN}&budget=under-500&for=family&interest=crafts`);
+  assert.equal(response.status, 200, response.text);
+  const { results, state } = response.json.data;
+  assert.equal(state, "Test State");
+  assert.equal(results[0].id, created.souvenirId);
+  assert.ok(results.every((item) => item.destinations.some((place) => place.state === "Test State")), "never other states");
+  for (const reason of [`From Smoke Falls Updated ${RUN}`, "Fits Under ₹500", "Great for family", "For handmade crafts lovers"]) assert.ok(results[0].reasons.includes(reason), reason);
+  const seeded = await anonymous.request("/api/souvenirs/recommend?state=Manipur");
+  assert.ok(seeded.json.data.results.every((item) => item.destinations.some((place) => place.state === "Manipur")));
+});
+await check("search suggestions include souvenirs", async () => {
+  const response = await anonymous.request(`/api/search/suggest?q=${encodeURIComponent(`Smoke Pot ${RUN}`)}`);
+  assert.ok(response.json.data.souvenirs.some((item) => item.href === `/souvenirs/smoke-pot-${RUN}`));
+});
+await check("unpublished souvenirs are hidden everywhere public", async () => {
+  assert.equal((await admin.request(`/api/admin/souvenirs/${created.souvenirId}`, { method: "PUT", body: { ...created.souvenirBody, isPublished: false } })).status, 200);
+  assert.equal((await anonymous.request(`/api/souvenirs/smoke-pot-${RUN}`)).status, 404);
+  assert.equal((await anonymous.request(`/souvenirs/smoke-pot-${RUN}`)).status, 404);
+  assert.ok(!(await anonymous.request(`/api/souvenirs?destination=smoke-falls-${RUN}`)).json.data.length, "not listed");
+  assert.ok(!(await anonymous.request(`/api/souvenirs/recommend?destination=smoke-falls-${RUN}`)).json.data.results.length, "not recommended");
+  assert.match((await anonymous.request(`/destinations/smoke-falls-${RUN}`)).text, /No local treasures have been added yet/);
+  assert.ok((await admin.request("/api/admin/souvenirs?published=false&limit=100")).json.data.some((item) => item.id === created.souvenirId), "admins still see drafts");
+  assert.equal((await admin.request(`/api/admin/souvenirs/${created.souvenirId}`, { method: "PUT", body: created.souvenirBody })).status, 200);
+});
+await check("deleting a place to buy unlinks it; categories in use can't be deleted", async () => {
+  assert.equal((await admin.request(`/api/admin/souvenir-categories/${created.souvenirCategoryId}`, { method: "DELETE" })).status, 409);
+  assert.equal((await admin.request(`/api/admin/sellers/${created.sellerId}`, { method: "DELETE" })).status, 200);
+  const detail = await anonymous.request(`/api/souvenirs/smoke-pot-${RUN}`);
+  assert.equal(detail.status, 200);
+  assert.equal(detail.json.data.sellers.length, 0);
+  assert.match((await anonymous.request(`/souvenirs/smoke-pot-${RUN}`)).text, /haven&#x27;t listed specific places yet/);
+});
 await check("review moderation updates the public rating", async () => {
   assert.equal((await admin.request(`/api/admin/reviews/${created.reviewId}`, { method: "PATCH", body: { status: "APPROVED" } })).status, 200);
   const publicList = await anonymous.request(`/api/destinations/${destination.id}/reviews`);
@@ -612,12 +760,13 @@ await check("tourist deletes their review and trip", async () => {
   assert.equal((await tourist.request(`/api/destinations/${destination.id}/save`, { method: "DELETE" })).status, 200);
 });
 await check("admin deletes test content", async () => {
-  for (const [resource, id] of [["stories", created.storyId], ["festivals", created.festivalId], ["experiences", created.experienceId], ["destinations", created.destinationId], ["villages", created.villageId], ["categories", created.categoryId]]) {
+  for (const [resource, id] of [["souvenirs", created.souvenirId], ["souvenir-categories", created.souvenirCategoryId], ["stories", created.storyId], ["festivals", created.festivalId], ["experiences", created.experienceId], ["destinations", created.destinationId], ["villages", created.villageId], ["categories", created.categoryId]]) {
     const response = await admin.request(`/api/admin/${resource}/${id}`, { method: "DELETE" });
     assert.equal(response.status, 200, `${resource}: ${response.text}`);
   }
   assert.equal((await admin.request(`/api/admin/permits/${created.permitId}`, { method: "DELETE" })).status, 200);
   assert.equal((await anonymous.request(`/destinations/smoke-falls-${RUN}`)).status, 404);
+  assert.equal((await anonymous.request(`/souvenirs/smoke-pot-${RUN}`)).status, 404);
 });
 await check("sign out ends the session", async () => {
   await tourist.request("/api/auth/sign-out", { method: "POST", body: {} });

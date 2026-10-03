@@ -12,13 +12,13 @@ import { adminListQuerySchema } from "@/lib/validators/admin";
 /** Shared server page for simple CMS resources. */
 const EIGHT_STATES = ["Arunachal Pradesh", "Assam", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Sikkim", "Tripura"];
 
-export async function ResourcePage({ resource, title, description, noun, searchParams, filters = [], needsDestinations = false, needsStates = false }) {
+export async function ResourcePage({ resource, title, description, noun, searchParams, filters = [], needsDestinations = false, needsStates = false, needsVillages = false }) {
   await requireAdminPage(`/admin/${resource}`);
   const query = parseSearchParams(adminListQuerySchema, await searchParams);
   const [{ data, meta }, destinations, villages] = await Promise.all([
     getResourceHandler(resource, "list")({ ...query, limit: 20 }),
     needsDestinations ? listDestinationOptions() : [],
-    needsStates ? listAllVillages() : [],
+    needsStates || needsVillages ? listAllVillages() : [],
   ]);
   // The eight Northeast states, plus any other state an admin has already added villages for.
   const states = [...new Set([...EIGHT_STATES, ...villages.map((village) => village.state)])].sort();
@@ -30,7 +30,11 @@ export async function ResourcePage({ resource, title, description, noun, searchP
       <ResourceManager
         resource={resource}
         rows={data}
-        options={{ destinations: destinations.map((item) => ({ value: item.id, label: item.name })), states: states.map((state) => ({ value: state, label: state })) }}
+        options={{
+          destinations: destinations.map((item) => ({ value: item.id, label: item.name })),
+          states: states.map((state) => ({ value: state, label: state })),
+          villages: villages.map((village) => ({ value: village.id, label: `${village.name} — ${village.district}, ${village.state}` })),
+        }}
       />
       <Pagination className="mt-6" meta={meta} basePath={`/admin/${resource}`} params={{ search: query.search, ...Object.fromEntries(filters.map((filter) => [filter.name, query[filter.name]])) }} />
     </>

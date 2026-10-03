@@ -10,7 +10,7 @@ Requirements: Node.js 20+, PostgreSQL 14+.
 npm install                 # also runs `prisma generate`
 cp .env.example .env        # then fill in the values (see below)
 npm run db:migrate          # apply all migrations
-npm run db:seed             # sample destinations, experiences, festivals, stories
+npm run db:seed             # sample destinations, experiences, festivals, stories, souvenirs
 npm run dev                 # http://localhost:3000
 ```
 
@@ -53,6 +53,18 @@ node scripts/backfill-best-months.mjs --dry   # preview
 node scripts/backfill-best-months.mjs          # apply (safe to re-run)
 ```
 
+Migration `20260929000000_souvenirs` is additive only (souvenir categories, souvenirs, places to buy). To add the starter
+"Take Home a Memory" content to an existing database without touching anything already there:
+
+```bash
+pg_dump "$DATABASE_URL" -Fc -f backup-before-upgrade.dump
+npm run db:migrate
+node scripts/seed-souvenirs.mjs                # safe to re-run; never overwrites
+```
+
+The starter souvenirs are well-known local crafts and foods with **approximate** prices and places, so each is flagged
+"needs verification" and no place is marked verified. Check them, add real photos, and untick the flag in the admin panel.
+
 ### Scripts
 
 | Command | What it does |
@@ -63,6 +75,7 @@ node scripts/backfill-best-months.mjs          # apply (safe to re-run)
 | `node scripts/smoke-test.mjs` | End-to-end check of pages, APIs, auth and permissions against a running server. It writes data, so use a dev/test database. Set `BASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`. |
 | `npm run db:migrate` / `db:seed` | Apply migrations / seed content and baseline permit rules |
 | `node scripts/backfill-best-months.mjs` | Fill `bestMonths` from free-text best seasons (`--dry` to preview) |
+| `node scripts/seed-souvenirs.mjs` | Add the starter souvenirs, categories and places to buy that are missing (never overwrites) |
 
 ## How it's built
 
@@ -71,9 +84,10 @@ Browser → Next.js App Router (server components, route handlers, server action
         → services (business rules)  → repositories (Prisma queries) → PostgreSQL
 ```
 
-* `app/(site)` — public pages (destinations, experiences, festivals, stories, guides, shared trips at `/t/[token]`) and the signed-in area (`(account)`: dashboard, trips, saved places, profile, guide dashboard).
+* `app/(site)` — public pages (destinations, experiences, festivals, souvenirs, stories, guides, shared trips at `/t/[token]`) and the signed-in area (`(account)`: dashboard, trips, saved places, profile, guide dashboard).
 * `app/admin` — the admin panel, with its own layout. Every admin page and API checks the `ADMIN` role on the server.
 * `app/api` — JSON API. Public endpoints are read-only; all content changes go through `/api/admin/[resource]`.
+  Souvenirs: `/api/souvenirs`, `/api/souvenirs/[slug]`, `/api/souvenirs/recommend` (read-only).
   Tourist actions: `/api/trips…`, `/api/destinations/[id]/save`, `/api/destinations/[id]/reviews`.
   Authentication: `/api/auth/*` (Better Auth).
 * `lib/services`, `lib/repositories`, `lib/validators` (Zod), `lib/auth` (Better Auth config and session helpers).
@@ -90,6 +104,11 @@ Privacy rules worth knowing:
 Design: the "Handloom Heritage" system lives in `app/globals.css` (light/dark tokens), `components/ui/weave.js` (woven-textile accents) and Fraunces display type. Components use semantic colour names (`surface`, `ink`, `line`, `link`…), so both themes come from the tokens.
 
 Recommendations are rule-based and explained on screen ("Because you saved Kaziranga · Wildlife"): shared interests with places a traveler saved, planned or rated highly, the same state, and overall ratings.
+
+Souvenirs ("Take Home a Memory") are discovery, not shopping: each local product has its story, an approximate price,
+who it suits, and the markets or workshops that sell it (on the map, with directions). There is no cart, checkout or
+payment. "Help me choose" ranks products with the rules in `lib/utils/souvenir-rank.js` and shows why each was picked
+("Made in Manipur · Fits under ₹500 · Great for family"). A destination only suggests souvenirs from its own state.
 
 # Tourist-Platform
 

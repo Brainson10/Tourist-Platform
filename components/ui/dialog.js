@@ -4,8 +4,11 @@ import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
 
-/** Accessible modal built on the native <dialog> element (focus trap + Esc for free). */
-export function Dialog({ open, onClose, title, description, children, className, size = "md" }) {
+/**
+ * Accessible modal built on the native <dialog> element (focus trap + Esc for free).
+ * `placement="sheet"` slides up from the bottom on small screens (e.g. mobile filters).
+ */
+export function Dialog({ open, onClose, title, description, children, className, size = "md", placement = "center" }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -30,6 +33,7 @@ export function Dialog({ open, onClose, title, description, children, className,
       className={cn(
         "m-auto max-h-[90vh] w-[calc(100%-2rem)] rounded-xl bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/40",
         size === "lg" ? "max-w-3xl" : size === "sm" ? "max-w-sm" : "max-w-lg",
+        placement === "sheet" && "dialog-sheet mx-0 mb-0 mt-auto w-full max-w-none rounded-b-none sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-xl",
         className
       )}
     >

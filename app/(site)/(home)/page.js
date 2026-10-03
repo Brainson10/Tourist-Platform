@@ -4,6 +4,7 @@ import { DestinationCard } from "@/components/cards/destination-card";
 import { ExperienceCard } from "@/components/cards/experience-card";
 import { FeatureDestinationCard } from "@/components/cards/feature-destination-card";
 import { GuideCard } from "@/components/cards/guide-card";
+import { SouvenirCard } from "@/components/cards/souvenir-card";
 import { FestivalTimeline } from "@/components/home/festival-timeline";
 import { HeroSearch } from "@/components/home/hero-search";
 import { MoodTiles } from "@/components/home/mood-tiles";
@@ -114,8 +115,25 @@ export default async function HomePage() {
         </Section>
       ) : null}
 
-      {data.stories.length ? (
+      {data.souvenirs.length ? (
         <Section>
+          <Container>
+            <SectionHeader
+              title="Take Home a Memory"
+              description="Handmade crafts, woven textiles and local flavours — the story behind each, and where to find it."
+              action={{ href: "/souvenirs", label: "All local treasures" }}
+            />
+            <CardGrid className="mt-6">
+              {data.souvenirs.map((souvenir) => (
+                <SouvenirCard key={souvenir.id} souvenir={souvenir} />
+              ))}
+            </CardGrid>
+          </Container>
+        </Section>
+      ) : null}
+
+      {data.stories.length ? (
+        <Section tinted={data.souvenirs.length > 0}>
           <Container>
             <SectionHeader title="Stories from the hills" description="Local voices and the history behind each place." action={{ href: "/stories", label: "Read more stories" }} />
             <div className="mt-6">

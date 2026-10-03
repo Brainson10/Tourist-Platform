@@ -42,6 +42,7 @@ Hiding UI is never the only protection.
 -   Experience Explorer
 -   Festival Intelligence
 -   Story Module
+-   Local Souvenirs ("Take Home a Memory")
 -   AI Trip Planner
 -   Recommendation Engine
 -   Tourist Dashboard
@@ -58,6 +59,7 @@ It must support:
 -   Destination intelligence administration
 -   Village and category management
 -   Festival, experience, and story content management
+-   Souvenirs, souvenir categories and places to buy
 -   Review moderation
 -   User role and account-status management
 -   Platform settings
@@ -127,6 +129,7 @@ Every destination page should include:
 -   AI itinerary
 -   Reviews
 -   Hidden gems
+-   Local souvenirs (Take Home a Memory)
 
 ## AI Trip Planner
 
@@ -164,6 +167,33 @@ Outputs:
     free-text `bestSeason` is kept for nuance.
 -   Weather, nearby places and maps come from external services and
     must degrade to a friendly message, never an error page.
+
+## Local souvenirs ("Take Home a Memory")
+
+-   Discovery, not commerce: no cart, checkout, payments, orders,
+    shipping or inventory. The flow is Discover → Learn → Find → Visit
+    → Buy locally. Any future selling must be a separate, deliberate
+    decision.
+-   A souvenir tells its story first (why it's special, why take it
+    home, how to spot the real thing), then who it suits, an
+    approximate price range ("Approx. ₹800–₹1,500", never an exact
+    price) and where to buy it.
+-   A souvenir belongs to one or more destinations. Its state comes
+    from those destinations' villages, and a place to buy
+    (`LocalSeller`) takes its district and state from its village.
+    Never store location twice.
+-   Relevance: a destination shows its own souvenirs first, then
+    others from the same state — never other states. "Help me choose"
+    is rule-based (`lib/utils/souvenir-rank.js`) and every suggestion
+    shows its reasons.
+-   Souvenir categories are their own taxonomy, separate from
+    destination categories.
+-   Content that hasn't been checked is flagged `needsVerification`
+    and shown with a note; places are only marked verified by an
+    admin. Never use unrelated stock photos — without a real photo,
+    show the woven fallback.
+-   Only admins create, edit or delete souvenirs, categories and
+    places to buy; public APIs return published souvenirs only.
 
 ## Uploads
 

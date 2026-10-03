@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Clock, Compass, MapPin, Search, Shuffle, Sparkles } from "lucide-react";
+import { CalendarDays, Clock, Compass, Gift, MapPin, Search, Shuffle, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { cn } from "@/components/ui/cn";
@@ -12,6 +12,7 @@ const GROUPS = [
   { key: "states", label: "States", Icon: Compass },
   { key: "experiences", label: "Experiences", Icon: Sparkles },
   { key: "festivals", label: "Festivals", Icon: CalendarDays },
+  { key: "souvenirs", label: "Souvenirs", Icon: Gift },
 ];
 
 function readRecent() {

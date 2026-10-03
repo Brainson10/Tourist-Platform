@@ -124,6 +124,9 @@ export default async function TripPage({ params }) {
                 <Link href={`/destinations/${destination.slug}#food-stay`} className="text-link hover:underline">
                   Food & places to stay
                 </Link>
+                <Link href={`/destinations/${destination.slug}#souvenirs`} className="text-link hover:underline">
+                  Souvenir ideas for this trip
+                </Link>
               </div>
             </div>
             ) : null}

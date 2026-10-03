@@ -1,10 +1,12 @@
+import { CATEGORY_ICONS, SELLER_KINDS, labelOf } from "@/lib/constants/souvenirs";
 import { formatDateRange, formatPrice, titleCase, toDateInput } from "@/lib/utils/format";
 
 const CATEGORY_OPTIONS = ["ADVENTURE", "CULTURE", "FOOD", "NATURE", "FESTIVAL", "WILDLIFE", "SPIRITUAL"].map((value) => ({ value, label: titleCase(value) }));
 
 /**
  * Field kinds: text, textarea, number, date, select, checkbox, image, slug (auto-filled from `from`).
- * `options: "destinations"` pulls choices from the page's option lists.
+ * `options: "destinations"` (or "states", "villages") pulls choices from the page's option lists.
+ * `placeholder` on an optional select adds an empty first choice.
  */
 export const RESOURCE_CONFIGS = {
   permits: {
@@ -109,6 +111,49 @@ export const RESOURCE_CONFIGS = {
     ],
     empty: { title: "", slug: "", destinationId: "", category: "FESTIVAL", startDate: "", endDate: "", imageUrl: "", description: "", significance: "", isFeatured: false },
     toForm: (row) => ({ ...row, startDate: toDateInput(row.startDate), endDate: toDateInput(row.endDate) }),
+  },
+  "souvenir-categories": {
+    singular: "souvenir category",
+    columns: [
+      { label: "Category", render: (row) => row.name, primary: true },
+      { label: "Slug", render: (row) => row.slug },
+      { label: "Icon", render: (row) => (row.icon ? labelOf(CATEGORY_ICONS, row.icon) : "—") },
+      { label: "Souvenirs", render: (row) => row._count?.souvenirs ?? 0 },
+    ],
+    fields: [
+      { name: "name", label: "Name", required: true, half: true },
+      { name: "slug", label: "URL slug", kind: "slug", from: "name", required: true, half: true },
+      { name: "icon", label: "Icon", kind: "select", options: CATEGORY_ICONS, placeholder: "Default (gift)", half: true, hint: "Shown on cards that have no photo yet" },
+      { name: "description", label: "Description", kind: "textarea", rows: 2 },
+    ],
+    empty: { name: "", slug: "", icon: "", description: "" },
+    deleteWarning: "Categories that still have souvenirs can't be deleted — move them first.",
+  },
+  sellers: {
+    singular: "place to buy",
+    columns: [
+      { label: "Place", render: (row) => row.name, primary: true },
+      { label: "Type", render: (row) => labelOf(SELLER_KINDS, row.kind) },
+      { label: "Location", render: (row) => (row.village ? `${row.village.name}, ${row.village.state}` : row.address) },
+      { label: "Souvenirs", render: (row) => row._count?.souvenirs ?? 0 },
+      { label: "Verified", render: (row) => (row.isVerified ? "Yes" : "Not yet") },
+    ],
+    fields: [
+      { name: "name", label: "Name", required: true, half: true, hint: "e.g. Ima Keithel (Mothers' Market)" },
+      { name: "slug", label: "URL slug", kind: "slug", from: "name", required: true, half: true },
+      { name: "kind", label: "Type of place", kind: "select", options: SELLER_KINDS, required: true, half: true },
+      { name: "villageId", label: "Village or town", kind: "select", options: "villages", placeholder: "Not linked", half: true, hint: "District and state come from the village" },
+      { name: "address", label: "Address or area", hint: "How a traveler would find it" },
+      { name: "latitude", label: "Latitude", kind: "number", required: true, half: true, step: "any", hint: "Used for the map pin and directions" },
+      { name: "longitude", label: "Longitude", kind: "number", required: true, half: true, step: "any" },
+      { name: "openingHours", label: "Opening hours", half: true, hint: "e.g. Daily 7 am – 6 pm" },
+      { name: "phone", label: "Phone", half: true },
+      { name: "website", label: "Website", hint: "https:// only" },
+      { name: "description", label: "Description", kind: "textarea", rows: 3 },
+      { name: "isVerified", label: "Details checked recently (shows a verified mark to travelers)", kind: "checkbox" },
+    ],
+    empty: { name: "", slug: "", kind: "MARKET", villageId: "", address: "", latitude: "", longitude: "", openingHours: "", phone: "", website: "", description: "", isVerified: false },
+    deleteWarning: "It will be removed from the “Where to buy” list of every souvenir that mentions it.",
   },
   stories: {
     singular: "story",

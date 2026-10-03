@@ -41,6 +41,56 @@ enum GuideStatus {
   REJECTED
 }
 
+enum SouvenirAudience {
+  MYSELF
+  FAMILY
+  FRIENDS
+  PARTNER
+  CHILDREN
+  PARENTS
+  COLLECTORS
+}
+
+enum SouvenirInterest {
+  CULTURE
+  FOOD
+  ART
+  FASHION
+  CRAFTS
+  HOME_DECOR
+  UNIQUE
+}
+
+enum SouvenirQuality {
+  LOCALLY_MADE
+  HANDMADE
+  TRADITIONAL
+  ARTISAN_MADE
+  REGIONAL_SPECIALTY
+}
+
+enum SouvenirAvailability {
+  YEAR_ROUND
+  SEASONAL
+  FESTIVAL_TIME
+  LIMITED
+}
+
+enum SouvenirPhotoKind {
+  PRODUCT
+  MAKING
+  MARKET
+}
+
+enum SellerKind {
+  MARKET
+  SHOP
+  ARTISAN_WORKSHOP
+  HANDICRAFT_CENTER
+  COOPERATIVE
+  OTHER
+}
+
 enum GuideRequestStatus {
   NEW
   ACCEPTED
@@ -139,6 +189,7 @@ model Village {
   updatedAt   DateTime @updatedAt
 
   destinations Destination[]
+  sellers      LocalSeller[]
 
   @@unique([name, district])
   @@index([district])
@@ -211,6 +262,7 @@ model Destination {
   tripItems             TripItem[]
   guideAreas            GuideArea[]
   guideRequests         GuideRequest[]
+  souvenirs             SouvenirDestination[]
 
   @@index([villageId])
   @@index([name])
@@ -498,6 +550,125 @@ model GuideRequest {
   @@index([guideId, status])
   @@index([touristId])
   @@index([destinationId])
+}
+
+// ---------------------------------------------------------------------------
+// "Take Home a Memory": local souvenirs. Discovery only — no cart, checkout or orders.
+// A souvenir's state comes from the destinations it is linked to; a seller's from its village.
+// ---------------------------------------------------------------------------
+
+/// Souvenir taxonomy (Handicrafts, Textiles, Food…). Separate from destination interest categories.
+model SouvenirCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  icon        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  souvenirs Souvenir[]
+}
+
+model Souvenir {
+  id                String               @id @default(cuid())
+  name              String
+  slug              String               @unique
+  shortDescription  String
+  description       String
+  /// Cultural or local significance: why it is special.
+  whySpecial        String
+  /// Practical reason to take it home (easy to carry, keeps well…).
+  whyTakeHome       String
+  authenticityTips  String?
+  carryTips         String?
+  categoryId        String
+  /// Approximate price range in whole rupees. Null when unknown.
+  priceMin          Int?
+  priceMax          Int?
+  currency          String               @default("INR")
+  audiences         SouvenirAudience[]   @default([])
+  interests         SouvenirInterest[]   @default([])
+  qualities         SouvenirQuality[]    @default([])
+  availability      SouvenirAvailability @default(YEAR_ROUND)
+  availabilityNote  String?
+  coverImage        String?
+  isFeatured        Boolean              @default(false)
+  isPublished       Boolean              @default(true)
+  /// Set for sample or unconfirmed data until an admin checks it.
+  needsVerification Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  category     SouvenirCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  destinations SouvenirDestination[]
+  photos       SouvenirPhoto[]
+  sellers      SouvenirSeller[]
+
+  @@index([categoryId])
+  @@index([isPublished, isFeatured])
+}
+
+model SouvenirDestination {
+  souvenirId    String
+  destinationId String
+
+  souvenir    Souvenir    @relation(fields: [souvenirId], references: [id], onDelete: Cascade)
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@id([souvenirId, destinationId])
+  @@index([destinationId])
+}
+
+model SouvenirPhoto {
+  id         String            @id @default(cuid())
+  souvenirId String
+  url        String
+  caption    String?
+  kind       SouvenirPhotoKind @default(PRODUCT)
+  position   Int               @default(0)
+  createdAt  DateTime          @default(now())
+
+  souvenir Souvenir @relation(fields: [souvenirId], references: [id], onDelete: Cascade)
+
+  @@index([souvenirId, position])
+}
+
+/// A place to buy souvenirs: a market, shop, artisan workshop or handicraft centre.
+model LocalSeller {
+  id           String     @id @default(cuid())
+  name         String
+  slug         String     @unique
+  kind         SellerKind @default(MARKET)
+  description  String?
+  address      String?
+  villageId    String?
+  latitude     Float
+  longitude    Float
+  phone        String?
+  website      String?
+  openingHours String?
+  isVerified   Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  village   Village?         @relation(fields: [villageId], references: [id], onDelete: SetNull)
+  souvenirs SouvenirSeller[]
+
+  @@index([villageId])
+}
+
+model SouvenirSeller {
+  souvenirId String
+  sellerId   String
+  /// e.g. "Ask for naturally dyed pieces".
+  note       String?
+
+  souvenir Souvenir    @relation(fields: [souvenirId], references: [id], onDelete: Cascade)
+  seller   LocalSeller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@id([souvenirId, sellerId])
+  @@index([sellerId])
 }
 
 model PlatformSetting {

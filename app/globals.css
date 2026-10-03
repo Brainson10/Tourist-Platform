@@ -37,6 +37,7 @@
   --color-indigo-500: #3e4f8f;
   --color-indigo-600: #313f74;
   --color-night: #1b1712;
+  --color-shop: #8b3a62;
 
   /* Semantic — light */
   --color-canvas: #f7f2e8;
@@ -177,6 +178,20 @@ summary::-webkit-details-marker {
   }
 }
 
+/* Bottom sheet dialogs slide up on small screens. */
+@media (max-width: 639px) and (prefers-reduced-motion: no-preference) {
+  .dialog-sheet[open] {
+    animation: sheet-up 220ms ease-out;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0.6;
+  }
+}
+
 /* Map pins (Leaflet divIcons). Colour by kind. */
 .map-pin {
   display: flex;
@@ -207,6 +222,7 @@ summary::-webkit-details-marker {
 .map-pin--transport { background: #2f6f8f; }
 .map-pin--atm { background: #4b5563; }
 .map-pin--stop { background: var(--color-accent-600); }
+.map-pin--shop { background: var(--color-shop); }
 
 .map-popup {
   display: grid;

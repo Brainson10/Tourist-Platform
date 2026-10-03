@@ -2,6 +2,7 @@ export const MAIN_NAV = [
   { href: "/destinations", label: "Destinations" },
   { href: "/experiences", label: "Experiences" },
   { href: "/festivals", label: "Festivals" },
+  { href: "/souvenirs", label: "Souvenirs" },
   { href: "/stories", label: "Stories" },
   { href: "/guides", label: "Guides" },
 ];

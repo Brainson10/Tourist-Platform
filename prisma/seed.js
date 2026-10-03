@@ -3,6 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import { parseBestMonths } from "../lib/utils/months.js";
+import { seedSouvenirs } from "./seed-souvenirs.js";
 
 dotenv.config();
 
@@ -526,6 +527,7 @@ async function main() {
   });
 
   await seedPermits();
+  await seedSouvenirs(prisma);
 
   if (demoUsers?.GUIDE) {
     await prisma.guideProfile.upsert({

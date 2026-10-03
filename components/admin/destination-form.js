@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { CheckboxChips } from "@/components/admin/checkbox-chips";
+import { FormSection } from "@/components/admin/form-section";
 import { GalleryEditor } from "@/components/admin/gallery-editor";
 import { ImageUrlField } from "@/components/admin/image-url-field";
 import { RecordListEditor } from "@/components/admin/record-list-editor";
@@ -87,16 +89,6 @@ function toPayload(values) {
   };
 }
 
-function FormSection({ title, description, children }) {
-  return (
-    <section className="rounded-xl border border-line bg-surface p-5 sm:p-6">
-      <h2 className="text-base font-semibold text-ink">{title}</h2>
-      {description ? <p className="mt-0.5 text-sm text-ink-muted">{description}</p> : null}
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">{children}</div>
-    </section>
-  );
-}
-
 export function DestinationForm({ destination, villages, categories }) {
   const [values, setValues] = useState(() => toFormValues(destination));
   const [slugTouched, setSlugTouched] = useState(Boolean(destination));
@@ -119,13 +111,6 @@ export function DestinationForm({ destination, villages, categories }) {
       villageId,
       // Pre-fill coordinates from the village the first time; admins can refine them.
       ...(selected && current.latitude === "" && current.longitude === "" ? { latitude: selected.latitude, longitude: selected.longitude } : {}),
-    }));
-  }
-
-  function toggleCategory(id) {
-    setValues((current) => ({
-      ...current,
-      categoryIds: current.categoryIds.includes(id) ? current.categoryIds.filter((item) => item !== id) : [...current.categoryIds, id],
     }));
   }
 
@@ -216,18 +201,13 @@ export function DestinationForm({ destination, villages, categories }) {
         </Field>
         {text("latitude", "Latitude", { required: true, half: true, type: "number", step: "any", hint: "Exact point of the destination" })}
         {text("longitude", "Longitude", { required: true, half: true, type: "number", step: "any" })}
-        <fieldset className="sm:col-span-2">
-          <legend className="text-sm font-medium text-ink">Categories</legend>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <label key={category.id} className="flex items-center gap-2 rounded-lg border border-line-strong px-3 py-1.5 text-sm has-[:checked]:border-link has-[:checked]:bg-brand-soft">
-                <input type="checkbox" checked={values.categoryIds.includes(category.id)} onChange={() => toggleCategory(category.id)} className="accent-brand-700" />
-                {category.name}
-              </label>
-            ))}
-          </div>
-          {errors.categoryIds ? <p className="mt-1 text-xs font-medium text-danger-ink">{errors.categoryIds[0]}</p> : null}
-        </fieldset>
+        <CheckboxChips
+          legend="Categories"
+          options={categories.map((category) => ({ value: category.id, label: category.name }))}
+          selected={values.categoryIds}
+          onChange={(categoryIds) => update("categoryIds", categoryIds)}
+          error={errors.categoryIds}
+        />
         <label className="flex items-center gap-2 text-sm text-ink sm:col-span-2">
           <input type="checkbox" checked={values.isFeatured} onChange={(event) => update("isFeatured", event.target.checked)} className="h-4 w-4 accent-brand-700" />
           Feature this destination on the home page
@@ -355,7 +335,7 @@ export function DestinationForm({ destination, villages, categories }) {
           onConfirm={remove}
           pending={pending}
           title="Delete this destination?"
-          description={`“${destination.name}” and its photos, experiences, festivals, stories and reviews will be permanently deleted. Trips that include it will keep their other details.`}
+          description={`“${destination.name}” and its photos, experiences, festivals, stories and reviews will be permanently deleted. Trips that include it will keep their other details, and its souvenirs stay listed without it.`}
         />
       ) : null}
     </form>

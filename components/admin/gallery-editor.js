@@ -7,13 +7,11 @@ import { GripVertical, ImagePlus, Star, Trash2 } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
-import { Input } from "@/components/ui/field";
+import { Input, Select } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { uploadImageFile } from "@/lib/utils/api-client";
 
-const MAX_PHOTOS = 20;
-
-function PhotoTile({ photo, index, isCover, onCaption, onRemove, onCover }) {
+function PhotoTile({ photo, index, isCover, kinds, onCaption, onKind, onRemove, onCover }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: photo.url });
 
   return (
@@ -39,6 +37,20 @@ function PhotoTile({ photo, index, isCover, onCaption, onRemove, onCover }) {
           Caption for photo {index + 1}
         </label>
         <Input id={`caption-${index}`} value={photo.caption} maxLength={200} placeholder="Caption (optional)" className="py-1.5 text-xs" onChange={(event) => onCaption(event.target.value)} />
+        {kinds ? (
+          <>
+            <label className="sr-only" htmlFor={`kind-${index}`}>
+              What photo {index + 1} shows
+            </label>
+            <Select id={`kind-${index}`} value={photo.kind ?? kinds[0].value} className="py-1.5 text-xs" onChange={(event) => onKind(event.target.value)}>
+              {kinds.map((kind) => (
+                <option key={kind.value} value={kind.value}>
+                  {kind.label}
+                </option>
+              ))}
+            </Select>
+          </>
+        ) : null}
         <div className="flex justify-between">
           <Button size="sm" variant="ghost" disabled={isCover} onClick={onCover}>
             <Star aria-hidden="true" className="h-3.5 w-3.5" />
@@ -53,8 +65,11 @@ function PhotoTile({ photo, index, isCover, onCaption, onRemove, onCover }) {
   );
 }
 
-/** Photos for a destination: upload several, paste links, reorder, caption, pick the cover. */
-export function GalleryEditor({ photos, onChange, coverImage, onCoverChange, error }) {
+/**
+ * Photos for a record: upload several, paste links, reorder, caption, pick the cover.
+ * `kinds` ([{ value, label }]) adds a "what does this photo show" select to each tile.
+ */
+export function GalleryEditor({ photos, onChange, coverImage, onCoverChange, error, folder = "destinations", maxPhotos = 20, noun = "A destination", kinds = null }) {
   const [link, setLink] = useState("");
   const [uploading, setUploading] = useState(0);
   const inputRef = useRef(null);
@@ -64,18 +79,18 @@ export function GalleryEditor({ photos, onChange, coverImage, onCoverChange, err
 
   function addUrls(urls) {
     const existing = new Set(photos.map((photo) => photo.url));
-    const fresh = urls.filter((url) => !existing.has(url)).map((url) => ({ url, caption: "" }));
-    const next = [...photos, ...fresh].slice(0, MAX_PHOTOS);
-    if (photos.length + fresh.length > MAX_PHOTOS) notify(`A destination can have up to ${MAX_PHOTOS} photos.`, "error");
+    const fresh = urls.filter((url) => !existing.has(url)).map((url) => ({ url, caption: "", ...(kinds ? { kind: kinds[0].value } : {}) }));
+    const next = [...photos, ...fresh].slice(0, maxPhotos);
+    if (photos.length + fresh.length > maxPhotos) notify(`${noun} can have up to ${maxPhotos} photos.`, "error");
     onChange(next);
     if (!coverImage && next.length) onCoverChange(next[0].url);
   }
 
   async function uploadFiles(fileList) {
-    const files = [...(fileList ?? [])].slice(0, MAX_PHOTOS - photos.length);
+    const files = [...(fileList ?? [])].slice(0, maxPhotos - photos.length);
     if (!files.length) return;
     setUploading(files.length);
-    const results = await Promise.all(files.map((file) => uploadImageFile(file, "destinations")));
+    const results = await Promise.all(files.map((file) => uploadImageFile(file, folder)));
     setUploading(0);
     const failed = results.filter((result) => !result.ok);
     if (failed.length) notify(failed[0].message, "error");
@@ -99,11 +114,11 @@ export function GalleryEditor({ photos, onChange, coverImage, onCoverChange, err
       }}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" size="sm" disabled={Boolean(uploading) || photos.length >= MAX_PHOTOS} onClick={() => inputRef.current?.click()}>
+        <Button variant="secondary" size="sm" disabled={Boolean(uploading) || photos.length >= maxPhotos} onClick={() => inputRef.current?.click()}>
           <ImagePlus aria-hidden="true" className="h-4 w-4" />
           {uploading ? `Uploading ${uploading}…` : "Upload photos"}
         </Button>
-        <span className="text-xs text-ink-subtle">or drop images here · {photos.length}/{MAX_PHOTOS}</span>
+        <span className="text-xs text-ink-subtle">or drop images here · {photos.length}/{maxPhotos}</span>
         <input
           ref={inputRef}
           type="file"
@@ -160,7 +175,9 @@ export function GalleryEditor({ photos, onChange, coverImage, onCoverChange, err
                   photo={photo}
                   index={index}
                   isCover={coverImage === photo.url}
+                  kinds={kinds}
                   onCaption={(caption) => onChange(photos.map((entry) => (entry.url === photo.url ? { ...entry, caption } : entry)))}
+                  onKind={(kind) => onChange(photos.map((entry) => (entry.url === photo.url ? { ...entry, kind } : entry)))}
                   onRemove={() => {
                     onChange(photos.filter((entry) => entry.url !== photo.url));
                     if (coverImage === photo.url) onCoverChange("");

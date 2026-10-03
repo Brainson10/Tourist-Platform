@@ -12,6 +12,7 @@ const STAT_LINKS = [
   ["experiences", "Experiences", "/admin/experiences"],
   ["festivals", "Festivals", "/admin/festivals"],
   ["stories", "Stories", "/admin/stories"],
+  ["souvenirs", "Souvenirs", "/admin/souvenirs"],
   ["reviews", "Reviews", "/admin/reviews"],
   ["users", "Users", "/admin/users"],
   ["guides", "Approved guides", "/admin/guides"],

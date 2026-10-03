@@ -75,7 +75,7 @@ export function ResourceForm({ config, initialValues, options, onSubmit, onCance
 
                 return (
                   <Select {...aria} value={values[field.name] ?? ""} onChange={(event) => update(field.name, event.target.value)}>
-                    {field.required && !values[field.name] ? <option value="">Choose…</option> : null}
+                    {field.placeholder ? <option value="">{field.placeholder}</option> : field.required && !values[field.name] ? <option value="">Choose…</option> : null}
                     {choices.map((choice) => (
                       <option key={choice.value} value={choice.value}>
                         {choice.label}

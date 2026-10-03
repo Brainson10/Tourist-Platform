@@ -13,7 +13,8 @@ const LAYOUTS = {
   5: { grid: "grid-cols-4 sm:grid-rows-2", first: "col-span-4 aspect-[16/9] sm:col-span-2 sm:row-span-2 sm:aspect-auto", rest: "hidden aspect-[4/3] sm:block" },
 };
 
-export function Gallery({ name, photos: allPhotos }) {
+/** `fallback` replaces the default "Photos coming soon" block when there are no (working) photos. */
+export function Gallery({ name, photos: allPhotos, fallback = null }) {
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(() => new Set());
   const photos = allPhotos.filter((photo) => !failed.has(photo.url));
@@ -24,6 +25,7 @@ export function Gallery({ name, photos: allPhotos }) {
   };
 
   if (!photos.length) {
+    if (fallback) return fallback;
     return (
       <div className="relative aspect-[16/7] overflow-hidden rounded-xl">
         <AppImage src={null} alt={name} fallbackLabel="Photos coming soon" />

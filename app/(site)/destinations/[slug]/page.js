@@ -17,6 +17,7 @@ import { ReviewsPanel } from "@/components/destination/reviews-panel";
 import { SaveButton } from "@/components/destination/save-button";
 import { ShareButton } from "@/components/destination/share-button";
 import { WeatherCard, WeatherCardSkeleton, WeatherNow } from "@/components/destination/weather-card";
+import { DestinationSouvenirs } from "@/components/souvenirs/destination-souvenirs";
 import { AppImage } from "@/components/ui/app-image";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import { getPermitForState } from "@/lib/services/permit.service";
 import { getReviewSection } from "@/lib/services/review.service";
 import { isSaved } from "@/lib/services/saved.service";
 import { getSettings } from "@/lib/services/settings.service";
+import { getDestinationSouvenirs } from "@/lib/services/souvenir.service";
 import { locationLabel, paragraphs } from "@/lib/utils/format";
 import { directionsUrl, largerMapUrl } from "@/lib/utils/geo";
 import { formatMonthSpans } from "@/lib/utils/months";
@@ -135,7 +137,7 @@ export default async function DestinationPage({ params }) {
   if (!destination) notFound();
 
   const user = await getCurrentUser();
-  const [reviewSection, related, nearbyDestinations, saved, settings, permit, guides] = await Promise.all([
+  const [reviewSection, related, nearbyDestinations, saved, settings, permit, guides, souvenirs] = await Promise.all([
     getReviewSection(destination.id, user?.id),
     getRelatedDestinations(destination, 7),
     getNearbyDestinations({ latitude: destination.latitude, longitude: destination.longitude, radiusKm: 60, limit: 4, excludeId: destination.id }),
@@ -143,6 +145,10 @@ export default async function DestinationPage({ params }) {
     getSettings(),
     getPermitForState(destination.village.state),
     listGuidesForDestination(destination.id, 3).catch(() => []),
+    getDestinationSouvenirs(destination, 6).catch((error) => {
+      console.error("[destination] souvenirs failed to load", error);
+      return null;
+    }),
   ]);
 
   const returnTo = `/destinations/${destination.slug}`;
@@ -176,6 +182,7 @@ export default async function DestinationPage({ params }) {
     hasFoodOrStay && ["food-stay", "Food & stay"],
     cultureTopics.length && ["culture", "Culture"],
     destination.festivals.length && ["festivals", "Festivals"],
+    ["souvenirs", "Souvenirs"],
     guides.length && ["guides", "Guides"],
     ["safety", "Safety"],
     ["nearby", "Nearby & map"],
@@ -391,6 +398,10 @@ export default async function DestinationPage({ params }) {
               </Section>
             ) : null}
 
+            <Section id="souvenirs" title="Take Home a Memory" description={`Take something special home from ${destination.village.state}.`}>
+              <DestinationSouvenirs destination={destination} souvenirs={souvenirs} />
+            </Section>
+
             {guides.length ? (
               <Section id="guides" title="Local guides" description="People who grew up here and can show you around.">
                 <CardGrid columns={3}>
@@ -446,7 +457,6 @@ export default async function DestinationPage({ params }) {
                   Open in OpenStreetMap<span className="sr-only"> (opens in a new tab)</span>
                 </a>
               </div>
-
 
               {destination.nearbyAttractions.length ? (
                 <div className="mt-8">
